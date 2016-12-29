@@ -460,21 +460,16 @@ function Addon:Hook_MountJournal_UpdateMountList()
 end
 
 function Addon:UpdateMountJournalTooltip(button)
-  self:Print('tooltip')
- 
-  print(button.spellID)
 
   if button and button.spellID then
     local petId = self.db.profile.pairs[button.spellID]
-  
-    print(petId)
   
     if petId then
       local petName = self:FindPetName(petId)
     
       if petName then
         GameTooltip:AddLine(" ")
-        GameTooltip:AddLine("|cFF33FF99Mount Mini-Me|r:" .. petName, true)
+        GameTooltip:AddLine("|cFF33FF99Mount Mini-Me|r: " .. petName, true)
         GameTooltip:Show()
       end
     end
