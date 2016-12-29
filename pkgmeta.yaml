@@ -1,3 +1,4 @@
+enable-nolib-creation: no
 externals:
-	MountMiniMe_Config:
+	../MountMiniMe_Config:
 		url: https://github.com/SyraeTheHealer/MountMiniMe_Config.git
