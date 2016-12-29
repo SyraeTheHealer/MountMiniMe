@@ -2,7 +2,7 @@
 ## Title: Mount Mini-me
 ## Notes: A thing
 ## Author: SyraeTheHealer
-## Version: 7.1.0.1
+## Version: @project-version@
 ## SavedVariables: MountMiniMeDB, MountMiniMeVersion
 ## OptionalDeps: Ace3
 embeds.xml
