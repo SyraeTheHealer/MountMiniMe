@@ -505,7 +505,7 @@ local function EventHandler(self, event, ...)
     elseif event=="PLAYER_LOGIN" then
       if IsAddOnLoaded("Blizzard_Collections") then
         -- for those addons that force a load in their login (sigh)
-        OnEvent(self,"ADDON_LOADED","Blizzard_Collections")
+        EventHandler(self,"ADDON_LOADED","Blizzard_Collections")
       else
         self:RegisterEvent("ADDON_LOADED")
       end
