@@ -14,7 +14,7 @@ local MountCollection = {}
 function Addon:OnInitialize()
 
   --register database events
-  self.db = LibStub('AceDB-3.0'):New(AddonName .. 'DB', self:GetDefaults(), UnitClass('player'))
+  self.db = LibStub('AceDB-3.0'):New(AddonName .. 'DB', self:GetDefaults(), true)
   self.db.RegisterCallback(self, 'OnNewProfile')
   self.db.RegisterCallback(self, 'OnProfileChanged')
   self.db.RegisterCallback(self, 'OnProfileCopied')
@@ -32,6 +32,13 @@ function Addon:OnInitialize()
     _G[AddonName .. 'Version'] = CURRENT_VERSION
   end
   
+  --create a loader for the options menu
+  local f = CreateFrame('Frame', nil, _G['InterfaceOptionsFrame'])
+  f:SetScript('OnShow', function(self)
+    self:SetScript('OnShow', nil)
+--    print('loading config addon: ' .. CONFIG_ADDON_NAME)
+    LoadAddOn(CONFIG_ADDON_NAME)
+  end)  
 end
 
 function Addon:OnEnable()
