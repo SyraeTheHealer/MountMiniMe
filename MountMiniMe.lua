@@ -631,7 +631,7 @@ function Addon:HandleStealthEnd()
     if StealthPetId then
     self:debug_print('resummon petId = ' .. tostring(StealthPetId));
       self:SummonPet(StealthPetId);
-    elseif self:IsDetectDismount() then
+    elseif self:IsDetectDismount() and (not C_PetJournal.GetSummonedPetGUID()) then
     self:debug_print('summon dismount pet');
       self:CheckAndSummonDismountPet();
     end
