@@ -4,7 +4,7 @@ local AddonName, AddonTable = ...
 local Addon = LibStub('AceAddon-3.0'):NewAddon(AddonTable, AddonName, 'AceEvent-3.0', 'AceConsole-3.0', 'AceTimer-3.0')
 local L = LibStub('AceLocale-3.0'):GetLocale(AddonName)
 
-local DEBUG = false;
+local DEBUG = true;
 
 local CURRENT_VERSION = GetAddOnMetadata(AddonName, 'Version')
 local CONFIG_ADDON_NAME = AddonName .. '_Config'
@@ -506,23 +506,39 @@ function Addon:CheckAndSummonDismountPet()
   end
 end
 
-function Addon:DismissPet()
+function Addon:DismissPet(delayMillis)
   self:debug_print('DismissPet');
-  self:CallDismissCompanion();
+  self:CallDismissCompanion(delayMillis);
 end
 
-function Addon:CallDismissCompanion()
+function Addon:CallDismissCompanion(delayMillis)
   self:debug_print('CallDismissCompanion');
   
-  local delay = self:GetLatencyMillis()/1000.0;
+  local delay = 100;
+  if not delayMillis then
+  delay = self:GetLatencyMillis();
+  else
+    delay = delayMillis;
+  end
+  delay = delay/1000.0;
   self:debug_print('dismiss delay ' .. delay);
   self:ScheduleTimer("CallDismissCompanion_Callback", delay);
 end
 
 function Addon:CallDismissCompanion_Callback()
   self:debug_print('CallDismissCompanion_Callback');
-  DismissCompanion("CRITTER");
+  
+  local currentPetId = C_PetJournal.GetSummonedPetGUID();
+  self:debug_print('current pet (before dismiss) = ' .. tostring(currentPetId))
+  
+--  DismissCompanion("CRITTER");
 --  self:CallSummonPetByGUID(C_PetJournal.GetSummonedPetGUID());
+  if currentPetId then
+    C_PetJournal.SummonPetByGUID(currentPetId);
+  end
+
+  currentPetId = C_PetJournal.GetSummonedPetGUID();
+  self:debug_print('current pet (after dismiss) = ' .. tostring(currentPetId))
 end
 
 function Addon:SummonPet(petId)
@@ -578,43 +594,80 @@ function Addon:UnitAuraEventHandler(event, ...)
 
   local stealthForm = self:IsStealthed();
 
-  if stealthForm or ((not stealthForm) and PlayerStealthed) then
-    self:HandleStealthEvent(stealthForm);
+--  if stealthForm or ((not stealthForm) and PlayerStealthed) then
+--    self:HandleStealthEvent(stealthForm);
+  if stealthForm and (not PlayerStealthed) then
+    self:debug_print('stealth start');
+    PlayerStealthed = true;
+    self:HandleStealthStart();
+  elseif (not stealthForm) and PlayerStealthed then
+    self:debug_print('stealth end');
+    self:HandleStealthEnd();
+    PlayerStealthed = false;
   else
     self:HandleMountEvent();
   end
 
 end
 
-function Addon:HandleStealthEvent(stealthForm)
-  self:debug_print('HandleStealthEvent');
+function Addon:HandleStealthStart()
+  self:debug_print('HandleStealthStart');
   
-  self:debug_print('stealthForm = ' .. tostring(stealthForm) .. ', PlayerStealthed = ' .. tostring(PlayerStealthed));
-  
-  local currentPetId = C_PetJournal.GetSummonedPetGUID();
-  if stealthForm and self:IsDismissOnStealth() and currentPetId then
-    self:debug_print('hiding pet for stealth: stealthForm = ' .. tostring(stealthForm) .. ', dismiss = ' .. tostring(self:IsDismissOnStealth()) .. ', currentPetId = ' .. currentPetId)
+  if self:IsDismissOnStealth() then
+    local currentPetId = C_PetJournal.GetSummonedPetGUID();
     StealthPetId = currentPetId;
-    PlayerStealthed = true;
     self:debug_print('storing pet id - ' .. tostring(StealthPetId));
---    DismissCompanion("CRITTER");
-    self:DismissPet();
-  elseif (not stealthForm) and PlayerStealthed then
+    if currentPetId then
+      self:DismissPet();
+    end
+  end
+end
+
+function Addon:HandleStealthEnd()
+  self:debug_print('HandleStealthEnd');
+  
+  if PlayerStealthed then
     self:debug_print('resummon after leave stealth');
-    PlayerStealthed = false;
---    self:CallSummonPetByGUID(StealthPetId);
     if StealthPetId then
+    self:debug_print('resummon petId = ' .. tostring(StealthPetId));
       self:SummonPet(StealthPetId);
     elseif self:IsDetectDismount() then
+    self:debug_print('summon dismount pet');
       self:CheckAndSummonDismountPet();
     end
     StealthPetId = nil;
   end
-  
 end
 
+--function Addon:HandleStealthEvent(stealthForm)
+--  self:debug_print('HandleStealthEvent');
+--  
+--  self:debug_print('stealthForm = ' .. tostring(stealthForm) .. ', PlayerStealthed = ' .. tostring(PlayerStealthed));
+--  
+--  local currentPetId = C_PetJournal.GetSummonedPetGUID();
+--  self:debug_print('dismiss = ' .. tostring(self:IsDismissOnStealth()) .. ', currentPetId = ' .. tostring(currentPetId))
+--  if stealthForm and self:IsDismissOnStealth() and currentPetId then
+--    self:debug_print('hiding pet for stealth: stealthForm = ' .. tostring(stealthForm) .. ', dismiss = ' .. tostring(self:IsDismissOnStealth()) .. ', currentPetId = ' .. currentPetId)
+--    StealthPetId = currentPetId;
+--    PlayerStealthed = true;
+--    self:debug_print('storing pet id - ' .. tostring(StealthPetId));
+-- --    DismissCompanion("CRITTER");
+--    self:DismissPet();
+--  elseif (not stealthForm) and PlayerStealthed then
+--    self:debug_print('resummon after leave stealth');
+--    PlayerStealthed = false;
+-- --    self:CallSummonPetByGUID(StealthPetId);
+--    if StealthPetId then
+--      self:SummonPet(StealthPetId);
+--    elseif self:IsDetectDismount() then
+--      self:CheckAndSummonDismountPet();
+--    end
+--    StealthPetId = nil;
+--  end
+--end
+
 function Addon:HandleMountEvent()
-  self:debug_print('HandleMountEvent');
+--  self:debug_print('HandleMountEvent');
 
   if PlayerMounted and (not IsMounted()) then
     self:debug_print('dismount');
