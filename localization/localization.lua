@@ -31,9 +31,14 @@ L.ClearTip = '<Shift Left Click> to clear a mini-me'
 L.SummonPetTip = '<Alt Left Click> to re-summon a mini-me pair\'s pet'
 L.ShowOptionsTip = '<Right Click> to show the options menu'
 
+L.DismountedAddTip = '<Left Click> to add a dismounted mini-me'
+L.DismountedClearTip = '<Shift Left Click> to clear a dismounted mini-me'
+
 --Messages
 L.NotMountedError = 'You are not mounted'
 L.NoPetSummoned = 'You do not have a companion summoned'
 L.NoPetForMount = '%s does not have a mini-me'
 L.PairAdded = '%s is now %s\'s mini-me'
 L.PairCleared = '%s is no longer %s\'s mini-me'
+L.DismountedPairAdded = '%s is now your dismounted mini-me'
+L.DismountedPairCleared = 'Dismounted mini-me cleared'

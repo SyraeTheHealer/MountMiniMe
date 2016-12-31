@@ -1,13 +1,15 @@
 --[[ MountMiniMe.lua ]]--
 
 local AddonName, AddonTable = ...
-local Addon = LibStub('AceAddon-3.0'):NewAddon(AddonTable, AddonName, 'AceEvent-3.0', 'AceConsole-3.0')
+local Addon = LibStub('AceAddon-3.0'):NewAddon(AddonTable, AddonName, 'AceEvent-3.0', 'AceConsole-3.0', 'AceTimer-3.0')
 local L = LibStub('AceLocale-3.0'):GetLocale(AddonName)
 
 local CURRENT_VERSION = GetAddOnMetadata(AddonName, 'Version')
 local CONFIG_ADDON_NAME = AddonName .. '_Config'
 
 local MountCollection = {}
+--local CurrentPetId, LastPetId
+local StealthPetId, PlayerStealthed, PlayerMounted
 
 --[[ Startup ]]--
 
@@ -43,6 +45,9 @@ end
 
 function Addon:OnEnable()
   self:Load()
+  
+--  CurrentPetId = C_PetJournal.GetSummonedPetGUID();
+--  self:debug_print('CurrentPetId = ' .. tostring(CurrentPetId))
 end
 
 --[[ Version Updating ]]--
@@ -54,6 +59,16 @@ function Addon:GetDefaults()
       },
       minimap = {
         hide = false,
+      },
+      options = {
+        dismount = {
+          enabled = false,
+          operation = 'summon',
+          petId = nil,
+        },
+        stealth = {
+          dismiss = false,
+        }
       },
     },
   }
@@ -91,6 +106,7 @@ function Addon:Load()
   end
 
   self:CreateMountTable()
+  self:InitTrackingVars()
 end
 
 --unload is called when we're switching profiles
@@ -110,6 +126,7 @@ function Addon:Unload()
   end
   
   self:DestroyMountTable()
+  self:InitTrackingVars()
 end
 
 
@@ -262,7 +279,45 @@ function Addon:ShowingMinimap()
   return not self.db.profile.minimap.hide
 end
 
---[[ Mount pairing functions ]]--
+--Stealth
+function Addon:IsDismissOnStealth()
+  return self.db.profile.options.stealth.dismiss;
+end
+
+function Addon:SetDismissOnStealth(enable)
+  self:debug_print('dismiss stealth = ' .. tostring(enable));
+  self.db.profile.options.stealth.dismiss = enable;
+end
+
+--Dismount
+function Addon:IsDetectDismount()
+  return self.db.profile.options.dismount.enabled;
+end
+
+function Addon:SetDetectDismount(enable)
+  self:debug_print('detect dismount = ' .. tostring(enable));
+  self.db.profile.options.dismount.enabled = enable;
+end
+
+function Addon:GetDismountOperation()
+  return self.db.profile.options.dismount.operation;
+end
+
+function Addon:SetDismountOperation(value)
+  self:debug_print('dismount op = ' .. tostring(value));
+  self.db.profile.options.dismount.operation = value;
+end
+
+function Addon:GetDismountPetId()
+  return self.db.profile.options.dismount.petId;
+end
+
+function Addon:SetDismountPetId(petId)
+  self:debug_print('dismount petId = ' .. tostring(petId));
+  self.db.profile.options.dismount.petId = petId;
+end
+
+--[[ Init/cleanup functions ]]--
 
 function Addon:CreateMountTable()
 --  self:Print('CreateMountTable')
@@ -286,9 +341,19 @@ function Addon:DestroyMountTable()
   MountCollection = {}
 end
 
+function Addon:InitTrackingVars()
+  StealthPetId = nil;
+  PlayerStealthed = false;
+  PlayerMounted = IsMounted();
+  
+  self:debug_print('PlayerMounted = ' .. tostring(PlayerMounted));
+end
+
+--[[ Mount pairing functions ]]--
+
 function Addon:AddMountPair()
 
-  if not IsMounted() then
+  if (not IsMounted()) and (not self:IsDetectDismount()) then
     self:Print(L.NotMountedError)
     return
   end
@@ -300,37 +365,47 @@ function Addon:AddMountPair()
     return
   end
 
-  local mountSpellId = self:FindMountSpellId()
-
-  if mountSpellId then
-    self.db.profile.pairs[mountSpellId] = petId
-
-    self:Print(format(L.PairAdded, self:FindPetName(petId), self:FindMountName()))
-
-    self:UpdateMountJournalOverlays()    
+  if IsMounted() then
+    local mountSpellId = self:FindMountSpellId()
+  
+    if mountSpellId then
+      self.db.profile.pairs[mountSpellId] = petId
+  
+      self:Print(format(L.PairAdded, self:FindPetName(petId), self:FindMountName()))
+  
+      self:UpdateMountJournalOverlays()    
+    end
+  else
+    self:debug_print('Adding dismount pet: petId = ' .. tostring(petId));
+    self:Print(format(L.DismountedPairAdded, self:FindPetName(petId)))
+    self:SetDismountPetId(petId);
   end
-
 end
 
 function Addon:ClearMountPair()
   
-  if not IsMounted() then
+  if not IsMounted() and (not self:IsDetectDismount()) then
     self:Print(L.NotMountedError)
     return
   end
 
-  local mountSpellId = self:FindMountSpellId()
-
-  if mountSpellId then
-    local oldPet = self.db.profile.pairs[mountSpellId]
-    self.db.profile.pairs[mountSpellId] = nil
-    local oldPetName = self:FindPetName(oldPet)
-    if oldPetName then
-      self:Print(format(L.PairCleared, oldPetName, self:FindMountName()))
-      self:UpdateMountJournalOverlays()
+  if IsMounted() then
+    local mountSpellId = self:FindMountSpellId()
+  
+    if mountSpellId then
+      local oldPet = self.db.profile.pairs[mountSpellId]
+      self.db.profile.pairs[mountSpellId] = nil
+      local oldPetName = self:FindPetName(oldPet)
+      if oldPetName then
+        self:Print(format(L.PairCleared, oldPetName, self:FindMountName()))
+        self:UpdateMountJournalOverlays()
+      end
     end
-  end
-    
+  else
+    self:debug_print('Clearing dismount pet');
+    self:Print(L.DismountedPairCleared)
+    self:SetDismountPetId(nil);
+  end    
 end
 
 function Addon:SummonMountPet()
@@ -356,7 +431,12 @@ function Addon:SummonMountPetById(mountSpellId)
     local currentPetId = C_PetJournal.GetSummonedPetGUID()
     
     if petId and (petId ~= currentPetId) then
-      C_PetJournal.SummonPetByGUID(petId)
+--      LastPetId = currentPetId
+--      CurrentPetId = petId
+--      self:debug_print('LastPetId = ' .. tostring(LastPetId))
+--      self:debug_print('CurrentPetId = ' .. tostring(CurrentPetId))
+--      C_PetJournal.SummonPetByGUID(petId)
+      self:CallSummonPetByGUID(petId);
     end
   end
 end
@@ -406,11 +486,68 @@ function Addon:FindMountName()
   end
 end
 
+function Addon:CallSummonPetByGUID(petId)
+  self:debug_print('CallSummonPetByGUID')
+  if petId then
+    local bandwidthIn, bandwidthOut, latencyHome, latencyWorld = GetNetStats();
+    self:debug_print('latencyHome ' .. latencyHome);
+    self:debug_print('latencyWorld ' .. latencyWorld);
+    local latency = math.max(latencyHome, latencyWorld);
+    local delay = latency/1000.0;
+    self:debug_print('delay ' .. delay);
+    self:ScheduleTimer("CallSummonPetByGUID_Callback", delay, petId);
+  end
+end
+
+function Addon:CallSummonPetByGUID_Callback(petId)
+  self:debug_print('CallSummonPetByGUID_Callback: petId = ' .. tostring(petId))
+  if petId then
+    C_PetJournal.SummonPetByGUID(petId);
+  end
+end
+
 --[[ Event handling ]]--
 
 function Addon:UnitAuraEventHandler(event, ...)
-    local mountSpellId = self:FindMountSpellId()
-    self:SummonMountPetById(mountSpellId)
+
+  local stealthForm = IsStealthed();
+
+  local currentPetId = C_PetJournal.GetSummonedPetGUID();
+  if stealthForm and self:IsDismissOnStealth() and currentPetId then
+    self:debug_print('hiding pet for stealth')
+    StealthPetId = currentPetId;
+    PlayerStealthed = true;
+    self:debug_print('storing pet id - ' .. tostring(StealthPetId));
+    DismissCompanion("CRITTER");
+  elseif (not stealthForm) and PlayerStealthed then
+    self:debug_print('resummon after leave stealth');
+    PlayerStealthed = false;
+    self:CallSummonPetByGUID(StealthPetId);
+    StealthPetId = nil;
+  end
+  
+  if PlayerMounted and (not IsMounted()) then
+    self:debug_print('dismount');
+    PlayerMounted = false;
+    if self:IsDetectDismount() then
+      self:debug_print('detecting dismount is true');
+      local dismountOp = self:GetDismountOperation();
+      self:debug_print('dismountOp = ' .. tostring(dismountOp));
+      if dismountOp == 'summon' then
+        self:debug_print('dismount summon: petId = ' .. tostring(self:GetDismountPetId()));
+        self:CallSummonPetByGUID(self:GetDismountPetId());
+      elseif dismountOp == 'dismiss' then
+        self:debug_print('dismount dismiss');
+        DismissCompanion("CRITTER");
+      end
+    end
+  elseif (not PlayerMounted) and IsMounted() then
+    self:debug_print('mount');
+    PlayerMounted = true;
+  end
+  
+  local mountSpellId = self:FindMountSpellId()
+  self:SummonMountPetById(mountSpellId)
 end
 
 --[[ MountJournal list overlay ]]--
@@ -521,3 +658,10 @@ local function EventHandler(self, event, ...)
 
 end
 frame:SetScript("OnEvent", EventHandler);
+
+--[[ Debug ]]--
+function Addon:debug_print(message)
+--  if message then
+--    print(message)
+--  end
+end

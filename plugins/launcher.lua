@@ -54,13 +54,17 @@ function Launcher:CreateDataBrokerObject()
 
       tooltip:AddLine(GetAddOnMetadata(AddonName, "Title"))
       
-      tooltip:AddLine(L.AddTip)
-      tooltip:AddLine(L.ClearTip)
-      tooltip:AddLine(L.SummonPetTip)
+      if IsMounted() then
+        tooltip:AddLine(L.AddTip)
+        tooltip:AddLine(L.ClearTip)
+        tooltip:AddLine(L.SummonPetTip)
+      else
+        tooltip:AddLine(L.DismountedAddTip)
+        tooltip:AddLine(L.DismountedClearTip)
+      end      
       if Addon:IsConfigAddonEnabled() then
         tooltip:AddLine(L.ShowOptionsTip)
       end
-      
     end
   })
 end
