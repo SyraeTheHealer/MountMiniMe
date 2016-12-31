@@ -4,6 +4,8 @@ local AddonName, AddonTable = ...
 local Addon = LibStub('AceAddon-3.0'):NewAddon(AddonTable, AddonName, 'AceEvent-3.0', 'AceConsole-3.0', 'AceTimer-3.0')
 local L = LibStub('AceLocale-3.0'):GetLocale(AddonName)
 
+local DEBUG = false;
+
 local CURRENT_VERSION = GetAddOnMetadata(AddonName, 'Version')
 local CONFIG_ADDON_NAME = AddonName .. '_Config'
 
@@ -343,9 +345,10 @@ end
 
 function Addon:InitTrackingVars()
   StealthPetId = nil;
-  PlayerStealthed = false;
+  PlayerStealthed = self:IsStealthed();
   PlayerMounted = IsMounted();
   
+  self:debug_print('PlayerStealthed = ' .. tostring(PlayerStealthed));
   self:debug_print('PlayerMounted = ' .. tostring(PlayerMounted));
 end
 
@@ -436,7 +439,8 @@ function Addon:SummonMountPetById(mountSpellId)
 --      self:debug_print('LastPetId = ' .. tostring(LastPetId))
 --      self:debug_print('CurrentPetId = ' .. tostring(CurrentPetId))
 --      C_PetJournal.SummonPetByGUID(petId)
-      self:CallSummonPetByGUID(petId);
+--      self:CallSummonPetByGUID(petId);
+      self:SummonPet(petId);
     end
   end
 end
@@ -486,60 +490,137 @@ function Addon:FindMountName()
   end
 end
 
+--[[ Mount summon/dismiss functions ]]--
+function Addon:CheckAndSummonDismountPet()
+  self:debug_print('detecting dismount is true');
+  local dismountOp = self:GetDismountOperation();
+  self:debug_print('dismountOp = ' .. tostring(dismountOp));
+  if dismountOp == 'summon' then
+    self:debug_print('dismount summon: petId = ' .. tostring(self:GetDismountPetId()));
+--        self:CallSummonPetByGUID(self:GetDismountPetId());
+    self:SummonPet(self:GetDismountPetId());
+  elseif dismountOp == 'dismiss' then
+    self:debug_print('dismount dismiss');
+--        DismissCompanion("CRITTER");
+    self:DismissPet();
+  end
+end
+
+function Addon:DismissPet()
+  self:debug_print('DismissPet');
+  self:CallDismissCompanion();
+end
+
+function Addon:CallDismissCompanion()
+  self:debug_print('CallDismissCompanion');
+  
+  local delay = self:GetLatencyMillis()/1000.0;
+  self:debug_print('dismiss delay ' .. delay);
+  self:ScheduleTimer("CallDismissCompanion_Callback", delay);
+end
+
+function Addon:CallDismissCompanion_Callback()
+  self:debug_print('CallDismissCompanion_Callback');
+  DismissCompanion("CRITTER");
+--  self:CallSummonPetByGUID(C_PetJournal.GetSummonedPetGUID());
+end
+
+function Addon:SummonPet(petId)
+  self:debug_print('SummonPet');
+  self:CallSummonPetByGUID(petId);
+end
+
 function Addon:CallSummonPetByGUID(petId)
   self:debug_print('CallSummonPetByGUID')
   if petId then
-    local bandwidthIn, bandwidthOut, latencyHome, latencyWorld = GetNetStats();
-    self:debug_print('latencyHome ' .. latencyHome);
-    self:debug_print('latencyWorld ' .. latencyWorld);
-    local latency = math.max(latencyHome, latencyWorld);
-    local delay = latency/1000.0;
-    self:debug_print('delay ' .. delay);
+    local delay = self:GetLatencyMillis()/1000.0;
+    self:debug_print('summon delay ' .. delay);
     self:ScheduleTimer("CallSummonPetByGUID_Callback", delay, petId);
   end
 end
 
 function Addon:CallSummonPetByGUID_Callback(petId)
   self:debug_print('CallSummonPetByGUID_Callback: petId = ' .. tostring(petId))
-  if petId then
+  if petId and (petId ~= C_PetJournal.GetSummonedPetGUID()) then
+    self:debug_print('summoning pet ' .. tostring(petId));
     C_PetJournal.SummonPetByGUID(petId);
+  else
+    self:debug_print('petId is nil or already summoned: ' .. tostring(petId));
   end
+end
+
+function Addon:GetLatencyMillis()
+  local bandwidthIn, bandwidthOut, latencyHome, latencyWorld = GetNetStats();
+  self:debug_print('latencyHome ' .. latencyHome);
+  self:debug_print('latencyWorld ' .. latencyWorld);
+  local latency = math.max(latencyHome, latencyWorld);
+  if latency == 0 then
+    latency = 100;
+  end
+  return latency;
+end
+
+function Addon:IsStealthed()
+  local stealthForm = IsStealthed();
+  
+  if DEBUG and (not stealthForm) then
+--    self:debug_print('gogo gadget ghostwolf')
+    stealthForm = (GetShapeshiftFormID() ~= nil);
+--    self:debug_print('fake stealth? = ' .. tostring(stealthForm));
+  end
+  
+  return stealthForm;
 end
 
 --[[ Event handling ]]--
 
 function Addon:UnitAuraEventHandler(event, ...)
 
-  local stealthForm = IsStealthed();
+  local stealthForm = self:IsStealthed();
 
+  if stealthForm or ((not stealthForm) and PlayerStealthed) then
+    self:HandleStealthEvent(stealthForm);
+  else
+    self:HandleMountEvent();
+  end
+
+end
+
+function Addon:HandleStealthEvent(stealthForm)
+  self:debug_print('HandleStealthEvent');
+  
+  self:debug_print('stealthForm = ' .. tostring(stealthForm) .. ', PlayerStealthed = ' .. tostring(PlayerStealthed));
+  
   local currentPetId = C_PetJournal.GetSummonedPetGUID();
   if stealthForm and self:IsDismissOnStealth() and currentPetId then
-    self:debug_print('hiding pet for stealth')
+    self:debug_print('hiding pet for stealth: stealthForm = ' .. tostring(stealthForm) .. ', dismiss = ' .. tostring(self:IsDismissOnStealth()) .. ', currentPetId = ' .. currentPetId)
     StealthPetId = currentPetId;
     PlayerStealthed = true;
     self:debug_print('storing pet id - ' .. tostring(StealthPetId));
-    DismissCompanion("CRITTER");
+--    DismissCompanion("CRITTER");
+    self:DismissPet();
   elseif (not stealthForm) and PlayerStealthed then
     self:debug_print('resummon after leave stealth');
     PlayerStealthed = false;
-    self:CallSummonPetByGUID(StealthPetId);
+--    self:CallSummonPetByGUID(StealthPetId);
+    if StealthPetId then
+      self:SummonPet(StealthPetId);
+    elseif self:IsDetectDismount() then
+      self:CheckAndSummonDismountPet();
+    end
     StealthPetId = nil;
   end
   
+end
+
+function Addon:HandleMountEvent()
+  self:debug_print('HandleMountEvent');
+
   if PlayerMounted and (not IsMounted()) then
     self:debug_print('dismount');
     PlayerMounted = false;
     if self:IsDetectDismount() then
-      self:debug_print('detecting dismount is true');
-      local dismountOp = self:GetDismountOperation();
-      self:debug_print('dismountOp = ' .. tostring(dismountOp));
-      if dismountOp == 'summon' then
-        self:debug_print('dismount summon: petId = ' .. tostring(self:GetDismountPetId()));
-        self:CallSummonPetByGUID(self:GetDismountPetId());
-      elseif dismountOp == 'dismiss' then
-        self:debug_print('dismount dismiss');
-        DismissCompanion("CRITTER");
-      end
+      self:CheckAndSummonDismountPet();
     end
   elseif (not PlayerMounted) and IsMounted() then
     self:debug_print('mount');
@@ -661,7 +742,7 @@ frame:SetScript("OnEvent", EventHandler);
 
 --[[ Debug ]]--
 function Addon:debug_print(message)
---  if message then
---    print(message)
---  end
+  if DEBUG and message then
+    print(message)
+  end
 end
