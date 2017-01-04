@@ -9,7 +9,7 @@ local DEBUG = false;
 local CURRENT_VERSION = GetAddOnMetadata(AddonName, 'Version')
 local CONFIG_ADDON_NAME = AddonName .. '_Config'
 
-local FEIGN_SPELL_ID = 5384;
+--local FEIGN_SPELL_ID = 5384;
 
 local MountCollection = {}
 --local CurrentPetId, LastPetId
@@ -75,6 +75,9 @@ function Addon:OnInitialize()
 	--Spell channeling
 	self:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START", Addon.ChannelStartEventHandler);
 	self:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP", Addon.ChannelStopEventHandler);
+	
+	--Mount Journal
+	self:RegisterEvent("MOUNT_JOURNAL_SEARCH_UPDATED", Addon.UpdateMountJournalOverlays);
 end
 
 function Addon:OnEnable()
@@ -102,7 +105,10 @@ function Addon:GetDefaults()
 				},
 				stealth = {
 					dismiss = false,
-				}
+				},
+				hunterMode = {
+					enabled = false,
+				},
 			},
 		},
 	}
@@ -351,6 +357,16 @@ function Addon:SetDismountPetId(petId)
 	self.db.profile.options.dismount.petId = petId;
 end
 
+--Hunter mode
+function Addon:IsHunterMode()
+	return self.db.profile.options.hunterMode.enabled;
+end
+
+function Addon:SetHunterMode(enable)
+	self:debug_print('hunter mode = ' .. tostring(enable));
+	self.db.profile.options.hunterMode.enabled = enable;
+end
+
 --[[ Init/cleanup functions ]]--
 
 function Addon:CreateMountTable()
@@ -422,8 +438,10 @@ end
 --[[ Mount pairing functions ]]--
 
 function Addon:AddMountPair()
-
-	if (not IsMounted()) and (not self:IsDetectDismount()) then
+	self:debug_print('AddMountPair');
+	self:debug_print('hunter mode = ' .. tostring(self:IsHunterMode()));
+	
+	if (not IsMounted()) and (not self:IsDetectDismount() and not self:IsHunterMode()) then
 		self:Print(L.NotMountedError)
 		return
 	end
@@ -446,15 +464,21 @@ function Addon:AddMountPair()
 			self:UpdateMountJournalOverlays()
 		end
 	else
-		self:debug_print('Adding dismount pet: petId = ' .. tostring(petId));
-		self:Print(format(L.DismountedPairAdded, self:FindPetName(petId)))
-		self:SetDismountPetId(petId);
+		if IsPetActive() and self:IsHunterMode() then
+			self:debug_print('Adding hunter pet: petId = ' .. tostring(petId));
+		else
+			self:debug_print('Adding dismount pet: petId = ' .. tostring(petId));
+			self:Print(format(L.DismountedPairAdded, self:FindPetName(petId)))
+			self:SetDismountPetId(petId);
+		end
 	end
 end
 
 function Addon:ClearMountPair()
+	self:debug_print('ClearMountPair');
+	self:debug_print('hunter mode = ' .. tostring(self:IsHunterMode()));
 
-	if not IsMounted() and (not self:IsDetectDismount()) then
+	if not IsMounted() and (not self:IsDetectDismount() or not self:IsHunterMode()) then
 		self:Print(L.NotMountedError)
 		return
 	end
@@ -479,6 +503,9 @@ function Addon:ClearMountPair()
 end
 
 function Addon:SummonMountPet()
+	self:debug_print('SummonMountPet');
+	self:debug_print('hunter mode = ' .. tostring(self:IsHunterMode()));
+
 	if not IsMounted() then
 		self:Print(L.NotMountedError)
 		return
@@ -666,28 +693,41 @@ function Addon:IsStealthed()
 end
 
 function Addon:IsFeigning()
-	local buffs, i = {}, 1;
-	local name, _, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i);
-	while name do
-		if FEIGN_SPELL_ID == spellId then
-			return true;
-		end
-		i = i + 1;
-		name, _, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i);
-	end
-	return false;
+--	local buffs, i = {}, 1;
+--	local name, _, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i);
+--	while name do
+--		if FEIGN_SPELL_ID == spellId then
+--			return true;
+--		end
+--		i = i + 1;
+--		name, _, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i);
+--	end
+--	return false;
+	
+	return UnitIsFeignDeath('player');
 end
 
 function Addon:CanSummonPet()
+--	if IsFlying()
+--	or PlayerInfo.combat
+--	or PlayerInfo.dead
+--	or PlayerInfo.feigning
+--	or PlayerInfo.casting
+--	or PlayerInfo.channeling  then
+--		return false
+--	end
+--	return true
+
 	if IsFlying()
-	or PlayerInfo.combat
-	or PlayerInfo.dead
-	or PlayerInfo.feigning
+	or (UnitAffectingCombat("player") or UnitAffectingCombat("pet") or PlayerInfo.combat)
+	or (UnitIsDeadOrGhost("player") or PlayerInfo.dead)
+	or (UnitIsFeignDeath("player") or PlayerInfo.feigning)
 	or PlayerInfo.casting
 	or PlayerInfo.channeling  then
 		return false
 	end
 	return true
+
 end
 
 --[[ Event handling ]]--
@@ -695,6 +735,12 @@ end
 function Addon:UnitAuraEventHandler()
 
 	Addon:debug_print('UnitAuraEventHandler');
+	
+	
+--	Addon:debug_print('pet tex - ' .. tostring(GetPetIcon()));
+--	Addon:debug_print('pet active - ' .. tostring(IsPetActive()));
+Addon:debug_print('pet full name - ' .. tostring(UnitFullName("pet")));
+Addon:debug_print('pet GUID - ' .. tostring(UnitGUID("pet")));
 
 	local stealthForm = Addon:IsStealthed();
 
@@ -909,6 +955,8 @@ function Addon:CreateMountJournalOverlays()
 end
 
 function Addon:UpdateMountJournalOverlays()
+	Addon:debug_print('UpdateMountJournalOverlays');
+
 	if MountJournal and MountJournal.ListScrollFrame:IsVisible() then
 		MountJournal.ListScrollFrame:update()
 	end
