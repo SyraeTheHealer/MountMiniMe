@@ -9,10 +9,7 @@ local DEBUG = false;
 local CURRENT_VERSION = GetAddOnMetadata(AddonName, 'Version')
 local CONFIG_ADDON_NAME = AddonName .. '_Config'
 
---local FEIGN_SPELL_ID = 5384;
-
 local MountCollection = {}
---local CurrentPetId, LastPetId
 local StealthPetId, PlayerStealthed, PlayerMounted
 
 local PlayerInfo = {
@@ -78,13 +75,14 @@ function Addon:OnInitialize()
 	
 	--Mount Journal
 	self:RegisterEvent("MOUNT_JOURNAL_SEARCH_UPDATED", Addon.UpdateMountJournalOverlays);
+	
+--	self:RegisterEvent('UNIT_PET', Addon.UnitPetEventHandler);
+	self:RegisterBucketEvent("UNIT_PET", 0.5, Addon.UnitPetEventHandler);
 end
 
 function Addon:OnEnable()
 	self:Load()
 
-	--  CurrentPetId = C_PetJournal.GetSummonedPetGUID();
-	--  self:debug_print('CurrentPetId = ' .. tostring(CurrentPetId))
 end
 
 --[[ Version Updating ]]--
@@ -109,6 +107,8 @@ function Addon:GetDefaults()
 				hunterMode = {
 					enabled = false,
 				},
+			},
+			hunterModePairs = {
 			},
 		},
 	}
@@ -408,13 +408,6 @@ function Addon:UpdatePlayerInfo()
 end
 
 function Addon:SetPlayerInfo(info)
-	--local PlayerInfo = {
-	--	combat = false,
-	--	dead = false,
-	--	feigning = false,
-	--	casting = false,
-	--	channeling = false,
-	--}
 	if info.combat then
 		PlayerInfo.combat = info.combat;
 	end
@@ -458,14 +451,17 @@ function Addon:AddMountPair()
 
 		if mountSpellId then
 			self.db.profile.pairs[mountSpellId] = petId
-
 			self:Print(format(L.PairAdded, self:FindPetName(petId), self:FindMountName()))
-
 			self:UpdateMountJournalOverlays()
 		end
 	else
 		if IsPetActive() and self:IsHunterMode() then
 			self:debug_print('Adding hunter pet: petId = ' .. tostring(petId));
+			local petGUID = UnitGUID("pet");
+			Addon:debug_print('pet GUID - ' .. tostring(petGUID));
+			
+			self.db.profile.hunterModePairs[petGUID] = petId;
+			self:Print(format(L.HunterPairAdded, self:FindPetName(petId), self:FindHunterPetName()));			
 		else
 			self:debug_print('Adding dismount pet: petId = ' .. tostring(petId));
 			self:Print(format(L.DismountedPairAdded, self:FindPetName(petId)))
@@ -478,7 +474,7 @@ function Addon:ClearMountPair()
 	self:debug_print('ClearMountPair');
 	self:debug_print('hunter mode = ' .. tostring(self:IsHunterMode()));
 
-	if not IsMounted() and (not self:IsDetectDismount() or not self:IsHunterMode()) then
+	if not IsMounted() and (not self:IsDetectDismount() and not self:IsHunterMode()) then
 		self:Print(L.NotMountedError)
 		return
 	end
@@ -496,9 +492,21 @@ function Addon:ClearMountPair()
 			end
 		end
 	else
-		self:debug_print('Clearing dismount pet');
-		self:Print(L.DismountedPairCleared)
-		self:SetDismountPetId(nil);
+		if IsPetActive() and self:IsHunterMode() then
+			self:debug_print('Clearing hunter pet');
+			local petGUID = UnitGUID("pet");
+			Addon:debug_print('pet GUID - ' .. tostring(petGUID));
+
+			local oldPet = self.db.profile.hunterModePairs[petGUID]
+			self.db.profile.hunterModePairs[petGUID] = nil;
+			local oldPetName = self:FindPetName(oldPet)
+			
+			self:Print(format(L.HunterPairCleared, oldPetName, self:FindHunterPetName()));			
+		else
+			self:debug_print('Clearing dismount pet');
+			self:Print(L.DismountedPairCleared)
+			self:SetDismountPetId(nil);
+		end
 	end
 end
 
@@ -528,12 +536,6 @@ function Addon:SummonMountPetById(mountSpellId)
 		local currentPetId = C_PetJournal.GetSummonedPetGUID()
 
 		if petId and (petId ~= currentPetId) then
-			--      LastPetId = currentPetId
-			--      CurrentPetId = petId
-			--      self:debug_print('LastPetId = ' .. tostring(LastPetId))
-			--      self:debug_print('CurrentPetId = ' .. tostring(CurrentPetId))
-			--      C_PetJournal.SummonPetByGUID(petId)
-			--      self:CallSummonPetByGUID(petId);
 			self:SummonPet(petId);
 		end
 	end
@@ -567,6 +569,16 @@ function Addon:FindPetName(petId)
 	else
 		return petName
 	end
+end
+
+function Addon:FindHunterPetName()
+	if not IsPetActive() then
+		return nil
+	end
+	
+	local name = UnitFullName("pet");
+	Addon:debug_print('pet full name - ' .. tostring(name));
+	return name;
 end
 
 function Addon:FindMountName()
@@ -625,8 +637,6 @@ function Addon:CallDismissCompanion_Callback()
 	local currentPetId = C_PetJournal.GetSummonedPetGUID();
 	self:debug_print('current pet (before dismiss) = ' .. tostring(currentPetId))
 
-	--  DismissCompanion("CRITTER");
-	--  self:CallSummonPetByGUID(C_PetJournal.GetSummonedPetGUID());
 	if currentPetId then
 		C_PetJournal.SummonPetByGUID(currentPetId);
 	end
@@ -637,6 +647,12 @@ end
 
 function Addon:SummonPet(petId)
 	self:debug_print('SummonPet');
+	
+	if petId and (petId == C_PetJournal.GetSummonedPetGUID()) then
+		Addon:debug_print('Requested pet is already active');
+		return;
+	end
+	
 	if self:CanSummonPet() then
 		self:CallSummonPetByGUID(petId);
 	else
@@ -644,9 +660,20 @@ function Addon:SummonPet(petId)
 		self:debug_print('PlayerInfo:');
 		self:debug_tprint(PlayerInfo, 1);
 		
---		local delay = self:GetLatencyMillis()/1000.0;
---		self:ScheduleTimer("SummonPet", delay, petId);
 		self:ScheduleTimer("SummonPet", 0.5, petId);
+	end
+end
+
+function Addon:SummonHunterPet()
+	if IsPetActive() and Addon:IsHunterMode() then
+		local petGUID = UnitGUID("pet");
+		Addon:debug_print('pet GUID ' .. tostring(petGUID));
+		Addon:debug_print('petId = ' .. tostring(Addon.db.profile.hunterModePairs[petGUID]));
+	
+		local petId = Addon.db.profile.hunterModePairs[petGUID];
+		
+		Addon:debug_print('summoning hunter pet ' .. tostring(petId));
+		Addon:SummonPet(petId);
 	end
 end
 
@@ -708,15 +735,6 @@ function Addon:IsFeigning()
 end
 
 function Addon:CanSummonPet()
---	if IsFlying()
---	or PlayerInfo.combat
---	or PlayerInfo.dead
---	or PlayerInfo.feigning
---	or PlayerInfo.casting
---	or PlayerInfo.channeling  then
---		return false
---	end
---	return true
 
 	if IsFlying()
 	or (UnitAffectingCombat("player") or UnitAffectingCombat("pet") or PlayerInfo.combat)
@@ -733,19 +751,20 @@ end
 --[[ Event handling ]]--
 
 function Addon:UnitAuraEventHandler()
-
 	Addon:debug_print('UnitAuraEventHandler');
+	Addon:SummonOnEvent();
+end
 	
+function Addon:UnitPetEventHandler()
+	Addon:debug_print('UnitPetEventHandler');
 	
---	Addon:debug_print('pet tex - ' .. tostring(GetPetIcon()));
---	Addon:debug_print('pet active - ' .. tostring(IsPetActive()));
-Addon:debug_print('pet full name - ' .. tostring(UnitFullName("pet")));
-Addon:debug_print('pet GUID - ' .. tostring(UnitGUID("pet")));
+	Addon:SummonHunterPet();
+end
+
+function Addon:SummonOnEvent()
 
 	local stealthForm = Addon:IsStealthed();
 
-	--  if stealthForm or ((not stealthForm) and PlayerStealthed) then
-	--    self:HandleStealthEvent(stealthForm);
 	if stealthForm and (not PlayerStealthed) then
 		Addon:debug_print('stealth start');
 		PlayerStealthed = true;
@@ -873,41 +892,17 @@ function Addon:HandleStealthEnd()
 	end
 end
 
---function Addon:HandleStealthEvent(stealthForm)
---  self:debug_print('HandleStealthEvent');
---
---  self:debug_print('stealthForm = ' .. tostring(stealthForm) .. ', PlayerStealthed = ' .. tostring(PlayerStealthed));
---
---  local currentPetId = C_PetJournal.GetSummonedPetGUID();
---  self:debug_print('dismiss = ' .. tostring(self:IsDismissOnStealth()) .. ', currentPetId = ' .. tostring(currentPetId))
---  if stealthForm and self:IsDismissOnStealth() and currentPetId then
---    self:debug_print('hiding pet for stealth: stealthForm = ' .. tostring(stealthForm) .. ', dismiss = ' .. tostring(self:IsDismissOnStealth()) .. ', currentPetId = ' .. currentPetId)
---    StealthPetId = currentPetId;
---    PlayerStealthed = true;
---    self:debug_print('storing pet id - ' .. tostring(StealthPetId));
--- --    DismissCompanion("CRITTER");
---    self:DismissPet();
---  elseif (not stealthForm) and PlayerStealthed then
---    self:debug_print('resummon after leave stealth');
---    PlayerStealthed = false;
--- --    self:CallSummonPetByGUID(StealthPetId);
---    if StealthPetId then
---      self:SummonPet(StealthPetId);
---    elseif self:IsDetectDismount() then
---      self:CheckAndSummonDismountPet();
---    end
---    StealthPetId = nil;
---  end
---end
-
 function Addon:HandleMountEvent()
 	--  self:debug_print('HandleMountEvent');
 
 	if PlayerMounted and (not IsMounted()) then
 		Addon:debug_print('dismount');
 		PlayerMounted = false;
-		if Addon:IsDetectDismount() then
+		if Addon:IsDetectDismount() and (not Addon:IsHunterMode()) then
 			Addon:CheckAndSummonDismountPet();
+		end
+		if IsPetActive() and Addon:IsHunterMode() then
+			Addon:SummonHunterPet();
 		end
 	elseif (not PlayerMounted) and IsMounted() then
 		Addon:debug_print('mount');
