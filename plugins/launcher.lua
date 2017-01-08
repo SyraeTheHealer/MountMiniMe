@@ -41,7 +41,7 @@ function Launcher:CreateDataBrokerObject()
 				if IsShiftKeyDown() then
 					Addon:ClearMountPair()
 				elseif IsAltKeyDown() then
-					Addon:SummonMountPet()
+					Addon:ResummonPet()
 				else
 					Addon:AddMountPair()
 				end
