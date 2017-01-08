@@ -88,7 +88,7 @@ function Addon:OnInitialize()
 	self:RegisterEvent("UPDATE_STEALTH", Addon.UpdateStealthEventHandler);
 	
 	--Hunter pets
---	self:RegisterBucketEvent("UNIT_PET", 0.5, Addon.UnitPetEventHandler);
+	self:RegisterBucketEvent("UNIT_PET", 0.5, Addon.UnitPetEventHandler);
 
 	--Summon timer
 --	RepeatingSummonTimerId = self:ScheduleRepeatingTimer("RepeatingSummonPet", 0.5);
@@ -398,12 +398,16 @@ end
 
 function Addon:DestroyMountTable()
 
-	-- Nil out elements
-	for k,v in pairs(MountCollection) do
-		MountCollection[k] = nil
-	end
-	-- Create new table to make sure
-	MountCollection = {}
+--	-- Nil out elements
+--	for k,v in pairs(MountCollection) do
+--		MountCollection[k] = nil
+--	end
+--	-- Create new table to make sure
+--	MountCollection = {}
+
+
+	MountCollection = wipe(MountCollection);	
+
 end
 
 function Addon:CreatePetSpellIdsTable()
@@ -458,12 +462,14 @@ end
 
 function Addon:DestroyPetSpellIdsTable()
 
-	-- Nil out elements
-	for k,v in pairs(PetSpellIds) do
-		PetSpellIds[k] = nil
-	end
-	-- Create new table to make sure
-	PetSpellIds = {}
+--	-- Nil out elements
+--	for k,v in pairs(PetSpellIds) do
+--		PetSpellIds[k] = nil
+--	end
+--	-- Create new table to make sure
+--	PetSpellIds = {}
+
+	PetSpellIds = wipe(PetSpellIds);
 end
 
 function Addon:InitTrackingVars()
@@ -647,18 +653,22 @@ function Addon:SetPetIdForMountSpellId(mountSpellId, petId)
 	self.db.profile.pairs[mountSpellId] = petId;
 end
 
-function Addon:FindPetIdForHunterPetGUID(hunterPetGUID)
-	if not hunterPetGUID then
+function Addon:FindPetIdForHunterPetName(hunterPetName)
+	if not hunterPetName then
+		Addon:debug_print('hunterPetName is nil');
 		return nil;
 	end
-	return self.db.profile.hunterModePairs[petGUID];
+	local petId = self.db.profile.hunterModePairs[hunterPetName];
+	Addon:debug_print('hunterPetName pair: ' .. tostring(hunterPetName) .. ' - ' .. tostring(petId));
+	return petId;
 end
 
-function Addon:SetPetIdForHunterPetGUID(hunterPetGUID, petId)
-	if not hunterPetGUID then
+function Addon:SetPetIdForHunterPetName(hunterPetName, petId)
+	if not hunterPetName then
+		Addon:debug_print('hunterPetName is nil');
 		return;
 	end
-	self.db.profile.hunterModePairs[petGUID] = petId;
+	self.db.profile.hunterModePairs[hunterPetName] = petId;
 end
 
 function Addon:IsPetSpellId(spellId)
@@ -750,70 +760,87 @@ function Addon:PlayerAliveEventHandler()
 	PlayerInfo.dead = false;
 end
 
-function Addon:SpellcastSentEventHandler()
-	Addon:debug_print('SpellcastSentEventHandler');
-	Addon:CastStart();
+function Addon:SpellcastSentEventHandler(unitId, spellName, rank, target, lineId)
+	if unitId == "player" then
+		Addon:debug_print('SpellcastSentEventHandler');
+		Addon:CastStart();
+	end
 end
 
 function Addon:SpellcastStartEventHandler(unitId, spellName, rank, lineId, spellId)
-	Addon:debug_print('SpellcastStartEventHandler');
-	Addon:CastStart();
-	
-	Addon:debug_print('**** ' .. tostring(spellName) .. ' ' .. tostring(spellId) .. ' ' .. tostring(lineId));
-	if Addon:IsPetSpellId(spellName) then
-		Addon:debug_print('**** pet spell id');
-		DesiredPetId = Addon:IsPetSpellId(spellName);
---		Addon:debug_print('**** ' .. tostring(C_PetJournal.GetSummonedPetGUID()));
+	if unitId == "player" then
+		Addon:debug_print('SpellcastStartEventHandler: unitId = ' .. tostring(unitId));
+		Addon:CastStart();
+		
+		Addon:debug_print('**** ' .. tostring(spellName) .. ' ' .. tostring(spellId) .. ' ' .. tostring(lineId));
+		if Addon:IsPetSpellId(spellName) then
+			Addon:debug_print('**** pet spell id');
+			DesiredPetId = Addon:IsPetSpellId(spellName);
+	--		Addon:debug_print('**** ' .. tostring(C_PetJournal.GetSummonedPetGUID()));
+		end
+		
+	--	local spell, rank, displayName, icon, startTime, endTime, isTradeSkill, castID, interrupt = UnitCastingInfo("player");
+	--	Addon:debug_print('**** ' .. tostring(displayName));	
 	end
-	
---	local spell, rank, displayName, icon, startTime, endTime, isTradeSkill, castID, interrupt = UnitCastingInfo("player");
---	Addon:debug_print('**** ' .. tostring(displayName));	
 end
 
-function Addon:SpellcastInterruptedEventHandler()
-	Addon:debug_print('SpellcastInterruptedEventHandler');
-	Addon:CastStop();
+function Addon:SpellcastInterruptedEventHandler(unitId, spellName, rank, lineId, spellId)
+	if unitId == "player" then
+		Addon:debug_print('SpellcastInterruptedEventHandler');
+		Addon:CastStop();
+	end
 end
 
-function Addon:SpellcastStopEventHandler()
-	Addon:debug_print('SpellcastStopEventHandler');
-	Addon:CastStop();
+function Addon:SpellcastStopEventHandler(unitId, spellName, rank, lineId, spellId)
+	if unitId == "player" then
+		Addon:debug_print('SpellcastStopEventHandler');
+		Addon:CastStop();
+	end
 end
 
-function Addon:SpellcastFailedEventHandler()
-	Addon:debug_print('SpellcastFailedEventHandler');
-	Addon:CastStop();
+function Addon:SpellcastFailedEventHandler(unitId, spellName, rank, lineId, spellId)
+	if unitId == "player" then
+		Addon:debug_print('SpellcastFailedEventHandler');
+		Addon:CastStop();
+	end
 end
 
-function Addon:SpellcastFailedQuietEventHandler()
-	Addon:debug_print('SpellcastFailedQuietEventHandler');
-	Addon:CastStop();
+function Addon:SpellcastFailedQuietEventHandler(unitId, spellName, rank, lineId, spellId)
+	if unitId == "player" then
+		Addon:debug_print('SpellcastFailedQuietEventHandler');
+		Addon:CastStop();
+	end
 end
 
 function Addon:SpellcastSucceededEventHandler(unitId, spellName, rank, lineId, spellId)
-	Addon:debug_print('SpellcastSucceededEventHandler');
-	Addon:CastStop();
-
-	Addon:debug_print('**** ' .. tostring(spellName) .. ' ' .. tostring(spellId) .. ' ' .. tostring(lineId));
-	if Addon:IsPetSpellId(spellName) then
-		Addon:debug_print('**** pet spell id');
-		DesiredPetId = Addon:IsPetSpellId(spellName)
---		Addon:debug_print('**** ' .. tostring(C_PetJournal.GetSummonedPetGUID()));
+	if unitId == "player" then
+		Addon:debug_print('SpellcastSucceededEventHandler: unitId = ' .. tostring(unitId));
+		Addon:CastStop();
+	
+		Addon:debug_print('**** ' .. tostring(spellName) .. ' ' .. tostring(spellId) .. ' ' .. tostring(lineId));
+		if Addon:IsPetSpellId(spellName) then
+			Addon:debug_print('**** pet spell id');
+			DesiredPetId = Addon:IsPetSpellId(spellName)
+	--		Addon:debug_print('**** ' .. tostring(C_PetJournal.GetSummonedPetGUID()));
+		end
+	
+	--	local spell, rank, displayName, icon, startTime, endTime, isTradeSkill, castID, interrupt = UnitCastingInfo("player");
+	--	Addon:debug_print('**** ' .. tostring(displayName));	
 	end
-
---	local spell, rank, displayName, icon, startTime, endTime, isTradeSkill, castID, interrupt = UnitCastingInfo("player");
---	Addon:debug_print('**** ' .. tostring(displayName));	
-
 end
 
-function Addon:ChannelStartEventHandler()
-	Addon:debug_print('ChannelStartEventHandler');
-	Addon:ChannelStart();
+function Addon:ChannelStartEventHandler(unitId, spellName, rank, lineId, spellId)
+	if unitId == "player" then
+		Addon:debug_print('ChannelStartEventHandler');
+		Addon:ChannelStart();
+	end
 end
 
-function Addon:ChannelStopEventHandler()
-	Addon:debug_print('ChannelStopEventHandler');
-	Addon:ChannelStop();
+function Addon:ChannelStopEventHandler(unitId, spellName, rank, lineId, spellId)
+	if unitId == "player" then
+		Addon:debug_print('ChannelStopEventHandler');
+		Addon:ChannelStop();
+	end
 end
 
 function Addon:CastStart()
@@ -1043,12 +1070,13 @@ function Addon:AddMountPair()
 	else
 		if IsPetActive() and self:IsHunterMode() then
 			self:debug_print('Adding hunter pet: petId = ' .. tostring(petId));
-			local petGUID = UnitGUID("pet");
-			Addon:debug_print('pet GUID - ' .. tostring(petGUID));
+--			local petGUID = UnitGUID("pet");
+--			Addon:debug_print('pet GUID - ' .. tostring(petGUID));
 			
 --			self.db.profile.hunterModePairs[petGUID] = petId;
-			Addon:SetPetIdForHunterPetGUID(petGUID, petId);
-			self:Print(format(L.HunterPairAdded, self:FindPetName(petId), self:FindHunterPetName()));			
+			local hunterPetName = self:FindHunterPetName();
+			Addon:SetPetIdForHunterPetName(hunterPetName, petId);
+			self:Print(format(L.HunterPairAdded, self:FindPetName(petId), hunterPetName));			
 		else
 			self:debug_print('Adding dismount pet: petId = ' .. tostring(petId));
 			self:Print(format(L.DismountedPairAdded, self:FindPetName(petId)));
@@ -1081,14 +1109,15 @@ function Addon:ClearMountPair()
 	else
 		if IsPetActive() and self:IsHunterMode() then
 			self:debug_print('Clearing hunter pet');
-			local petGUID = UnitGUID("pet");
-			Addon:debug_print('pet GUID - ' .. tostring(petGUID));
+--			local petGUID = UnitGUID("pet");
+--			Addon:debug_print('pet GUID - ' .. tostring(petGUID));
 
-			local oldPet = Addon:FindPetIdForHunterPetGUID(petGUID);
-			Addon:SetPetIdForHunterPetGUID(petGUID, nil);
+			local hunterPetName = self:FindHunterPetName();
+			local oldPet = Addon:FindPetIdForHunterPetName(hunterPetName);
+			Addon:SetPetIdForHunterPetName(hunterPetName, nil);
 			local oldPetName = self:FindPetName(oldPet)
 			
-			self:Print(format(L.HunterPairCleared, oldPetName, self:FindHunterPetName()));			
+			self:Print(format(L.HunterPairCleared, oldPetName, hunterPetName));			
 		else
 			self:debug_print('Clearing dismount pet');
 			self:Print(L.DismountedPairCleared)
@@ -1113,8 +1142,9 @@ function Addon:ResummonPet()
 	else
 		if IsPetActive() and self:IsHunterMode() then
 			self:debug_print('Resummon hunter pet');
-			local petGUID = UnitGUID("pet");
-			Addon:SummonPet(Addon:FindPetIdForHunterPetGUID(petGUID));
+--			local petGUID = UnitGUID("pet");
+			local hunterPetName = Addon:FindHunterPetName();
+			Addon:SummonPet(Addon:FindPetIdForHunterPetName(hunterPetName));
 		else
 			self:debug_print('Resummon dismount pet');
 			Addon:SummonPet(Addon:GetDismountPetId());
@@ -1128,10 +1158,10 @@ end
 
 --Mount summoning
 function Addon:UnitAuraEventHandler()
-	Addon:debug_print('UnitAuraEventHandler');
+--	Addon:debug_print('UnitAuraEventHandler');
 
-	Addon:debug_print('PlayerStealthed = ' .. tostring(PlayerStealthed));
-	Addon:debug_print('IsStealthed = ' .. tostring(Addon:IsStealthed()));
+--	Addon:debug_print('PlayerStealthed = ' .. tostring(PlayerStealthed));
+--	Addon:debug_print('IsStealthed = ' .. tostring(Addon:IsStealthed()));
 
 	local wasPlayerMounted = PlayerMounted;
 	PlayerMounted = IsMounted();
@@ -1164,6 +1194,8 @@ function Addon:UnitPetEventHandler()
 	Addon:debug_print('UnitPetEventHandler');
 	
 	if IsPetActive() then
+		Addon:debug_print('petGUID = ' .. tostring(UnitGUID("pet")));
+	
 		Addon:debug_print('hunter pet summoned');
 		Addon:HandleHunterPetSummon();
 	else
@@ -1175,8 +1207,11 @@ end
 function Addon:HandleHunterPetSummon()
 	Addon:debug_print('HandleHunterPetSummon');
 
-	local petGUID = UnitGUID("pet");
-	Addon:SummonPet(Addon:FindPetIdForHunterPetGUID(petGUID));	
+--	local petGUID = UnitGUID("pet");
+--	Addon:SummonPet(Addon:FindPetIdForHunterPetGUID(petGUID));	
+
+	local hunterPetName = Addon:FindHunterPetName();
+	Addon:SummonPet(Addon:FindPetIdForHunterPetName(hunterPetName));	
 end
 
 function Addon:HandleHunterPetDismiss()
