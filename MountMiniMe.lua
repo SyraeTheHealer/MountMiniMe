@@ -4,7 +4,7 @@ local AddonName, AddonTable = ...
 local Addon = LibStub('AceAddon-3.0'):NewAddon(AddonTable, AddonName, 'AceBucket-3.0', 'AceEvent-3.0', 'AceConsole-3.0', 'AceTimer-3.0')
 local L = LibStub('AceLocale-3.0'):GetLocale(AddonName)
 
-local DEBUG = false;
+local DEBUG = true;
 
 local CURRENT_VERSION = GetAddOnMetadata(AddonName, 'Version')
 local CONFIG_ADDON_NAME = AddonName .. '_Config'
@@ -1179,12 +1179,21 @@ end
 function Addon:HandleMountStart()
 	Addon:debug_print('HandleMountStart');
 	
+	if Addon:IsHunterMode() and IsPetActive() then
+		Addon:debug_print('Hunter mode active, not summoning mount pet');
+		return;
+	end
 	local mountSpellId = Addon:FindMountSpellId()
 	Addon:SummonPet(Addon:FindPetIdForMountSpellId(mountSpellId));	
 end
 
 function Addon:HandleMountEnd()
 	Addon:debug_print('HandleMountEnd');
+
+	if Addon:IsHunterMode() and IsPetActive() then
+		Addon:debug_print('Hunter mode active, not summoning dismount pet');
+		return;
+	end
 	
 	Addon:CheckAndSummonDismountPet();
 end
