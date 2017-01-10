@@ -12,7 +12,7 @@ local CONFIG_ADDON_NAME = AddonName .. '_Config'
 local MountCollection = {}
 local PetSpellIds = {}
 local NumPetSpellIds
-local StealthPetId, PlayerStealthed, PlayerMounted, DesiredPetId
+local StealthPetId, PlayerStealthed, PlayerMounted, PlayerHasHunterPet, DesiredPetId
 local RepeatingSummonTimerId, SummonTimerId, DismissTimerId
 local PetChangeInProgress
 
@@ -91,7 +91,7 @@ function Addon:OnInitialize()
 	self:RegisterBucketEvent("UNIT_PET", 0.5, Addon.UnitPetEventHandler);
 
 	--Summon timer
---	RepeatingSummonTimerId = self:ScheduleRepeatingTimer("RepeatingSummonPet", 0.5);
+	RepeatingSummonTimerId = self:ScheduleRepeatingTimer("RepeatingSummonPet", 0.5);
 
 end
 
@@ -478,19 +478,26 @@ function Addon:InitTrackingVars()
 	StealthPetId = nil;
 	PlayerStealthed = self:IsStealthed();
 	PlayerMounted = IsMounted();
+	PlayerHasHunterPet = IsPetActive();
 	DesiredPetId = C_PetJournal.GetSummonedPetGUID();
 
 	self:debug_print('PlayerStealthed = ' .. tostring(PlayerStealthed));
 	self:debug_print('PlayerMounted = ' .. tostring(PlayerMounted));
+	self:debug_print('PlayerHasHunterPet = ' .. tostring(PlayerHasHunterPet));
 
 	self:UpdatePlayerInfo();
 	
-	if PlayerMounted then
-		Addon:debug_print('player loaded in mounted');
-		Addon:HandleMountStart();
-	elseif PlayerStealthed then
-		Addon:debug_print('player loaded in stealthed');
-		Addon:HandleStealthStart();
+	if PlayerHasHunterPet and self:IsHunterMode() then
+		Addon:debug_print('player loaded in and has pet and hunter mode active')
+		Addon:HandleHunterPetSummon();
+	else
+		if PlayerMounted then
+			Addon:debug_print('player loaded in mounted');
+			Addon:HandleMountStart();
+		elseif PlayerStealthed then
+			Addon:debug_print('player loaded in stealthed');
+			Addon:HandleStealthStart();
+		end
 	end
 end
 
@@ -627,7 +634,7 @@ end
 function Addon:CanSummonPet()
 
 	if IsFlying()
---	or (UnitAffectingCombat("player") or UnitAffectingCombat("pet") or PlayerInfo.combat)
+	or (UnitAffectingCombat("player") or UnitAffectingCombat("pet") or PlayerInfo.combat)
 	or (UnitIsDeadOrGhost("player") or PlayerInfo.dead)
 	or (UnitIsFeignDeath("player") or PlayerInfo.feigning)
 	or PlayerInfo.casting
@@ -1179,6 +1186,8 @@ end
 function Addon:HandleMountStart()
 	Addon:debug_print('HandleMountStart');
 	
+	StealthPetId = nil;
+	
 	if Addon:IsHunterMode() and IsPetActive() then
 		Addon:debug_print('Hunter mode active, not summoning mount pet');
 		return;
@@ -1202,12 +1211,15 @@ end
 function Addon:UnitPetEventHandler()
 	Addon:debug_print('UnitPetEventHandler');
 	
-	if IsPetActive() then
+	local playerHadHunterPet = PlayerHasHunterPet;
+	PlayerHasHunterPet = IsPetActive();
+	
+	if PlayerHasHunterPet and (not playerHadHunterPet) then
 		Addon:debug_print('petGUID = ' .. tostring(UnitGUID("pet")));
 	
 		Addon:debug_print('hunter pet summoned');
 		Addon:HandleHunterPetSummon();
-	else
+	elseif (not PlayerHasHunterPet) and playerHadHunterPet then
 		Addon:debug_print('hunter pet dismissed');
 		Addon:HandleHunterPetDismiss();
 	end
