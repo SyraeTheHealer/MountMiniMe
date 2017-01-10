@@ -1214,6 +1214,9 @@ function Addon:UnitPetEventHandler()
 	local playerHadHunterPet = PlayerHasHunterPet;
 	PlayerHasHunterPet = IsPetActive();
 	
+	Addon:debug_print('playerHadHunterPet = ' .. tostring(playerHadHunterPet));
+	Addon:debug_print('PlayerHasHunterPet = ' .. tostring(PlayerHasHunterPet));
+	
 	if PlayerHasHunterPet and (not playerHadHunterPet) then
 		Addon:debug_print('petGUID = ' .. tostring(UnitGUID("pet")));
 	
@@ -1222,6 +1225,9 @@ function Addon:UnitPetEventHandler()
 	elseif (not PlayerHasHunterPet) and playerHadHunterPet then
 		Addon:debug_print('hunter pet dismissed');
 		Addon:HandleHunterPetDismiss();
+	elseif playerHadHunterPet and PlayerHasHunterPet then
+		Addon:debug_print('hunter pet switch (for handling warlock pets that dont need to be manually dismissed to change)');
+		Addon:HandleHunterPetSummon();
 	end
 end
 
@@ -1237,6 +1243,8 @@ end
 
 function Addon:HandleHunterPetDismiss()
 	Addon:debug_print('HandleHunterPetDismiss');
+	
+	PlayerHasHunterPet = IsPetActive();
 	
 	Addon:CheckAndSummonDismountPet();
 end

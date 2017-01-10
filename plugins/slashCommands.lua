@@ -25,7 +25,7 @@ function SlashCommands:OnCmd(args)
   elseif cmd == 'remove' or cmd == 'clear' or cmd == 'del' or cmd == 'delete' then
     Addon:ClearMountPair()
   elseif cmd == 'pet' then
-    Addon:SummonMountPet()
+    Addon:ResummonPet()
   else
     self:PrintHelp()
   end
