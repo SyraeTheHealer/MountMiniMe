@@ -4,7 +4,7 @@ local AddonName, AddonTable = ...
 local Addon = LibStub('AceAddon-3.0'):NewAddon(AddonTable, AddonName, 'AceBucket-3.0', 'AceEvent-3.0', 'AceConsole-3.0', 'AceTimer-3.0')
 local L = LibStub('AceLocale-3.0'):GetLocale(AddonName)
 
-local DEBUG = false;
+local DEBUG = true;
 
 local CURRENT_VERSION = GetAddOnMetadata(AddonName, 'Version')
 local CONFIG_ADDON_NAME = AddonName .. '_Config'
@@ -22,6 +22,7 @@ local PlayerInfo = {
 	feigning = false,
 	casting = false,
 	channeling = false,
+	looting = false,
 }
 
 --[[ Startup ]]--
@@ -77,6 +78,10 @@ function Addon:OnInitialize()
 	self:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START", Addon.ChannelStartEventHandler);
 	self:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP", Addon.ChannelStopEventHandler);
 	
+	--Looting
+	self:RegisterEvent("LOOT_STARTED", Addon.LootStartedHandler);
+	self:RegisterEvent("LOOT_STOPPED", Addon.LootStoppedHandler);
+	
 	--Mount Journal
 	self:RegisterEvent("MOUNT_JOURNAL_SEARCH_UPDATED", Addon.UpdateMountJournalOverlays);
 	
@@ -120,6 +125,7 @@ function Addon:GetDefaults()
 				},
 				hunterMode = {
 					enabled = false,
+					operation = 'keep',
 				},
 			},
 			hunterModePairs = {
@@ -383,6 +389,15 @@ function Addon:SetHunterMode(enable)
 	self.db.profile.options.hunterMode.enabled = enable;
 end
 
+function Addon:GetHunterModeOperation()
+	return self.db.profile.options.hunterMode.operation;
+end
+
+function Addon:SetHunterModeOperation(value)
+	self:debug_print('hunter mode op = ' .. tostring(value));
+	self.db.profile.options.hunterMode.operation = value;
+end
+
 --[[ Init/cleanup functions ]]--
 
 function Addon:CreateMountTable()
@@ -488,8 +503,15 @@ function Addon:InitTrackingVars()
 	self:UpdatePlayerInfo();
 	
 	if PlayerHasHunterPet and self:IsHunterMode() then
-		Addon:debug_print('player loaded in and has pet and hunter mode active')
-		Addon:HandleHunterPetSummon();
+--		local hunterModeOp = self:GetHunterModeOperation();
+--		self:debug_print('hunterModeOp' .. tostring(hunterModeOp));
+--		if PlayerMounter and (hunterModeOp == 'summon') then
+--			Addon:debug_print('player loaded in and has pet and hunter mode active, but mount summon option set')
+--			Addon:HandleMountStart();
+--		else
+			Addon:debug_print('player loaded in and has pet and hunter mode active')
+			Addon:HandleHunterPetSummon();
+--		end
 	else
 		if PlayerMounted then
 			Addon:debug_print('player loaded in mounted');
@@ -639,6 +661,8 @@ function Addon:CanSummonPet()
 	or (UnitIsFeignDeath("player") or PlayerInfo.feigning)
 	or PlayerInfo.casting
 	or PlayerInfo.channeling
+	or PlayerInfo.looting
+	or UnitOnTaxi("player")
 	then
 		return false
 	end
@@ -755,6 +779,16 @@ end
 function Addon:RegenDisabledEventHandler()
 	Addon:debug_print('RegenDisabledEventHandler');
 	PlayerInfo.combat = true;
+end
+
+function Addon:LootStartedHandler()
+	Addon:debug_print('LootStartedHandler');
+	PlayerInfo.looting = true;
+end
+
+function Addon:LootStoppedHandler()
+	Addon:debug_print('LootStoppedHandler');
+	PlayerInfo.looting = false;
 end
 
 function Addon:PlayerDeadEventHandler()
@@ -1188,7 +1222,10 @@ function Addon:HandleMountStart()
 	
 	StealthPetId = nil;
 	
-	if Addon:IsHunterMode() and IsPetActive() then
+	local hunterModeOp = self:GetHunterModeOperation();
+	self:debug_print('hunterModeOp' .. tostring(hunterModeOp));
+	
+	if Addon:IsHunterMode() and IsPetActive() and (hunterModeOp == 'keep') then
 		Addon:debug_print('Hunter mode active, not summoning mount pet');
 		return;
 	end
@@ -1199,8 +1236,15 @@ end
 function Addon:HandleMountEnd()
 	Addon:debug_print('HandleMountEnd');
 
-	if Addon:IsHunterMode() and IsPetActive() then
+	local hunterModeOp = self:GetHunterModeOperation();
+	self:debug_print('hunterModeOp' .. tostring(hunterModeOp));
+
+	if Addon:IsHunterMode() and IsPetActive() and (hunterModeOp == 'keep') then
 		Addon:debug_print('Hunter mode active, not summoning dismount pet');
+		return;
+	elseif Addon:IsHunterMode() and IsPetActive() and (hunterModeOp == 'summon') then
+		Addon:debug_print('Dismount, hunter mode active, summoning hunter pet');
+		Addon:HandleHunterPetSummon();
 		return;
 	end
 	
@@ -1208,26 +1252,37 @@ function Addon:HandleMountEnd()
 end
 
 --Hunter pet summoning
-function Addon:UnitPetEventHandler()
-	Addon:debug_print('UnitPetEventHandler');
+function Addon:UnitPetEventHandler(unitId)
+	Addon:debug_print('UnitPetEventHandler - unitId = ' .. tostring(unitId));
+	if not unitId or unitId == "player" then
 	
-	local playerHadHunterPet = PlayerHasHunterPet;
-	PlayerHasHunterPet = IsPetActive();
-	
-	Addon:debug_print('playerHadHunterPet = ' .. tostring(playerHadHunterPet));
-	Addon:debug_print('PlayerHasHunterPet = ' .. tostring(PlayerHasHunterPet));
-	
-	if PlayerHasHunterPet and (not playerHadHunterPet) then
-		Addon:debug_print('petGUID = ' .. tostring(UnitGUID("pet")));
-	
-		Addon:debug_print('hunter pet summoned');
-		Addon:HandleHunterPetSummon();
-	elseif (not PlayerHasHunterPet) and playerHadHunterPet then
-		Addon:debug_print('hunter pet dismissed');
-		Addon:HandleHunterPetDismiss();
-	elseif playerHadHunterPet and PlayerHasHunterPet then
-		Addon:debug_print('hunter pet switch (for handling warlock pets that dont need to be manually dismissed to change)');
-		Addon:HandleHunterPetSummon();
+		Addon:debug_print('UnitPetEventHandler');
+		
+		local playerHadHunterPet = PlayerHasHunterPet;
+		PlayerHasHunterPet = IsPetActive();
+		
+		Addon:debug_print('playerHadHunterPet = ' .. tostring(playerHadHunterPet));
+		Addon:debug_print('PlayerHasHunterPet = ' .. tostring(PlayerHasHunterPet));
+		
+		local hunterModeOp = Addon:GetHunterModeOperation();
+		Addon:debug_print('hunterModeOp' .. tostring(hunterModeOp));
+		if IsMounted() and (hunterModeOp == 'summon') then
+			Addon:debug_print('Player is mounted and hunterModeOp is summon');
+			return;
+		end
+		
+		if PlayerHasHunterPet and (not playerHadHunterPet) then
+			Addon:debug_print('petGUID = ' .. tostring(UnitGUID("pet")));
+		
+			Addon:debug_print('hunter pet summoned');
+			Addon:HandleHunterPetSummon();
+		elseif (not PlayerHasHunterPet) and playerHadHunterPet then
+			Addon:debug_print('hunter pet dismissed');
+			Addon:HandleHunterPetDismiss();
+		elseif playerHadHunterPet and PlayerHasHunterPet then
+			Addon:debug_print('hunter pet switch (for handling warlock pets that dont need to be manually dismissed to change)');
+			Addon:HandleHunterPetSummon();
+		end
 	end
 end
 
