@@ -127,8 +127,13 @@ function Addon:GetDefaults()
 					enabled = false,
 					operation = 'keep',
 				},
+				perCharDismount = {
+					enabled = false,
+				},
 			},
 			hunterModePairs = {
+			},
+			perCharDismountPairs = {
 			},
 		},
 	}
@@ -398,6 +403,20 @@ function Addon:SetHunterModeOperation(value)
 	self.db.profile.options.hunterMode.operation = value;
 end
 
+--Per-character dismount
+function Addon:IsPerCharDismount()
+	return self.db.profile.options.perCharDismount.enabled;
+end
+
+function Addon:SetPerCharDismount(enable)
+	self:debug_print('per-char dismount = ' .. tostring(enable));
+	self.db.profile.options.perCharDismount.enabled = enable;
+	if enable then
+		Addon:AddPerCharDismountPet(Addon:GetDismountPetId());
+	end
+end
+
+
 --[[ Init/cleanup functions ]]--
 
 function Addon:CreateMountTable()
@@ -663,6 +682,11 @@ function Addon:CanSummonPet()
 	or PlayerInfo.channeling
 	or PlayerInfo.looting
 	or UnitOnTaxi("player")
+	--UnitHasVehiclePlayerFrameUI
+	--UnitIsControlling
+	--UnitIsCharmed
+	--UnitPlayerControlled("player") ??? is player controllign toon?
+	--UnitUsingVehicle
 	then
 		return false
 	end
@@ -700,6 +724,24 @@ function Addon:SetPetIdForHunterPetName(hunterPetName, petId)
 		return;
 	end
 	self.db.profile.hunterModePairs[hunterPetName] = petId;
+end
+
+function Addon:FindPetIdForCharacterName(characterName)
+	if not characterName then
+		Addon:debug_print('characterName is nil');
+		return nil;
+	end
+	local petId = self.db.profile.perCharDismountPairs[characterName];
+	Addon:debug_print('characterName pair: ' .. tostring(characterName) .. ' - ' .. tostring(petId));
+	return petId;
+end
+
+function Addon:SetPetIdForCharacterName(characterName, petId)
+	if not characterName then
+		Addon:debug_print('characterName is nil');
+		return;
+	end
+	self.db.profile.perCharDismountPairs[characterName] = petId;
 end
 
 function Addon:IsPetSpellId(spellId)
@@ -1121,7 +1163,11 @@ function Addon:AddMountPair()
 		else
 			self:debug_print('Adding dismount pet: petId = ' .. tostring(petId));
 			self:Print(format(L.DismountedPairAdded, self:FindPetName(petId)));
-			self:SetDismountPetId(petId);
+			if Addon:IsPerCharDismount() then
+				Addon:AddPerCharDismountPet(petId);
+			else
+				self:SetDismountPetId(petId);
+			end
 		end
 	end
 end
@@ -1194,6 +1240,13 @@ function Addon:ResummonPet()
 	
 end
 
+function Addon:AddPerCharDismountPet(petId)
+	if not petId then
+		return;
+	end
+	
+	Addon:SetPetIdForCharacterName(UnitFullName("player"), petId);
+end
 
 --[[ Summon/Dismiss related event handling ]]--
 
@@ -1365,9 +1418,16 @@ function Addon:CheckAndSummonDismountPet()
 	local dismountOp = self:GetDismountOperation();
 	self:debug_print('dismountOp = ' .. tostring(dismountOp));
 	if dismountOp == 'summon' then
-		self:debug_print('dismount summon: petId = ' .. tostring(self:GetDismountPetId()));
-		--        self:CallSummonPetByGUID(self:GetDismountPetId());
-		self:SummonPet(self:GetDismountPetId());
+		local petId = self:FindPetIdForCharacterName(UnitFullName("player"));
+		if Addon:IsPerCharDismount() and petId then
+			self:debug_print('dismount summon: petId = ' .. tostring(petId));
+			self:SummonPet(petId);
+		else
+			petId = self:GetDismountPetId();
+			self:debug_print('dismount summon: petId = ' .. tostring(petId));
+			--        self:CallSummonPetByGUID(self:GetDismountPetId());
+			self:SummonPet(petId);
+		end
 	elseif dismountOp == 'dismiss' then
 		self:debug_print('dismount dismiss');
 		--        DismissCompanion("CRITTER");
