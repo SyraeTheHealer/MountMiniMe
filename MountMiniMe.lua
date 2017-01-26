@@ -1,7 +1,7 @@
 --[[ MountMiniMe.lua ]]--
 
 local AddonName, AddonTable = ...
-local Addon = LibStub('AceAddon-3.0'):NewAddon(AddonTable, AddonName, 'AceBucket-3.0', 'AceEvent-3.0', 'AceConsole-3.0', 'AceTimer-3.0')
+local Addon = LibStub('AceAddon-3.0'):NewAddon(AddonTable, AddonName, 'AceBucket-3.0', 'AceEvent-3.0', 'AceConsole-3.0', 'AceTimer-3.0', 'AceHook-3.0')
 local L = LibStub('AceLocale-3.0'):GetLocale(AddonName)
 
 local DEBUG = false;
@@ -23,6 +23,8 @@ local PlayerInfo = {
 	casting = false,
 	channeling = false,
 	looting = false,
+	controlLost = false,
+	sitting = false,
 }
 
 --[[ Startup ]]--
@@ -81,6 +83,10 @@ function Addon:OnInitialize()
 	--Looting
 	self:RegisterEvent("LOOT_STARTED", Addon.LootStartedHandler);
 	self:RegisterEvent("LOOT_STOPPED", Addon.LootStoppedHandler);
+
+	--Control lost
+	self:RegisterEvent("PLAYER_CONTROL_LOST", Addon.ControlLostStartedHandler);
+	self:RegisterEvent("PLAYER_CONTROL_GAINED", Addon.ControlLostStoppedHandler);
 	
 	--Mount Journal
 	self:RegisterEvent("MOUNT_JOURNAL_SEARCH_UPDATED", Addon.UpdateMountJournalOverlays);
@@ -98,9 +104,57 @@ function Addon:OnInitialize()
 	--Summon timer
 	RepeatingSummonTimerId = self:ScheduleRepeatingTimer("RepeatingSummonPet", 0.5);
 
+--	--Mount journal search
+--	self:RegisterEvent("MOUNT_JOURNAL_SEARCH_UPDATED", Addon.MountJournalSearch);
+
+	--test
+--	self:RegisterEvent("PLAYER_FLAGS_CHANGED", Addon.FlagChange);
+--	self:RegisterEvent("UNIT_FLAGS", Addon.UnitFlags);
+--	self:RegisterEvent("UNIT_AURA", Addon.Sitting);
 end
 
+--function Addon:MountJournalSearch()
+--	Addon:debug_print('MountJournalSearch');
+--	Addon:UpdateMountJournalOverlays();
+--end
+
+--function Addon:Sitting()
+--	Addon:debug_print("Sitting called");
+--	--    local name, rank, icon, count, dispelType, duration, expires, caster, isStealable, nameplateShowPersonal, spellID, canApplyAura, isBossDebuff, _, nameplateShowAll, timeMod, value1, value2, value3 = UnitDebuff("player", "Sitting");
+--	
+--	--	local name, rank, icon, castingTime, minRange, maxRange, spellID = GetSpellInfo(76701);
+--	--    Addon:debug_print('sitting = ' .. tostring(name));
+--	--    name, rank, icon, castingTime, minRange, maxRange, spellID = GetSpellInfo(80612);
+--	--    Addon:debug_print('sitting = ' .. tostring(name));
+--	--    name, rank, icon, castingTime, minRange, maxRange, spellID = GetSpellInfo(89279);
+--	--    Addon:debug_print('sitting = ' .. tostring(name));
+--	
+--	--	Addon:debug_print('in range = ' .. tostring(IsSpellInRange("Sitting", "player")));    
+--    
+--end
+
+--function Addon:FlagChange()
+--	Addon:debug_print('player flag change');
+--end
+--
+--function Addon:UnitFlags()
+--	Addon:debug_print('unit flags');
+--end
+
 function Addon:OnEnable()
+
+	self:SecureHook("SitStandOrDescendStart");
+	self:SecureHook("JumpOrAscendStart");
+	self:SecureHook("MoveAndSteerStart");
+	self:SecureHook("MoveBackwardStart");
+	self:SecureHook("MoveForwardStart");
+	self:SecureHook("StrafeLeftStart");
+	self:SecureHook("StrafeRightStart");
+	self:SecureHook("ToggleAutoRun");
+	self:SecureHook("TurnLeftStart");
+	self:SecureHook("TurnRightStart");
+	self:SecureHook("TurnOrActionStart");
+
 	self:Load()
 end
 
@@ -681,12 +735,14 @@ function Addon:CanSummonPet()
 	or PlayerInfo.casting
 	or PlayerInfo.channeling
 	or PlayerInfo.looting
+	or PlayerInfo.controlLost
+	or PlayerInfo.sitting
 	or UnitOnTaxi("player")
 	--UnitHasVehiclePlayerFrameUI
 	--UnitIsControlling
-	--UnitIsCharmed
+	or UnitIsCharmed("player")
 	--UnitPlayerControlled("player") ??? is player controllign toon?
-	--UnitUsingVehicle
+	or UnitUsingVehicle("player")
 	then
 		return false
 	end
@@ -833,6 +889,16 @@ function Addon:LootStoppedHandler()
 	PlayerInfo.looting = false;
 end
 
+function Addon:ControlLostStartedHandler()
+	Addon:debug_print('ControlLostStartedHandler');
+	PlayerInfo.controlLost = true;
+end
+
+function Addon:ControlLostStoppedHandler()
+	Addon:debug_print('ControlLostStoppedHandler');
+	PlayerInfo.controlLost = false;
+end
+
 function Addon:PlayerDeadEventHandler()
 	Addon:debug_print('PlayerDeadEventHandler');
 	PlayerInfo.dead = true;
@@ -910,6 +976,8 @@ function Addon:SpellcastSucceededEventHandler(unitId, spellName, rank, lineId, s
 	--	local spell, rank, displayName, icon, startTime, endTime, isTradeSkill, castID, interrupt = UnitCastingInfo("player");
 	--	Addon:debug_print('**** ' .. tostring(displayName));	
 	end
+	
+	Addon:debug_print('>>>> spellcast succeed ' .. tostring(spellName));
 end
 
 function Addon:ChannelStartEventHandler(unitId, spellName, rank, lineId, spellId)
@@ -984,6 +1052,10 @@ function Addon:CreateMountJournalOverlays()
 					button.minime:Hide()
 				end
 			end
+		else
+			if button.minime then
+				button.minime:Hide()
+			end
 		end
 	end
 end
@@ -1031,6 +1103,14 @@ function Addon:Hook_MountJournalMountButton_UpdateTooltip()
 	end)
 end
 
+--function Addon:Hook_SitStandOrDescendStart()
+--	Addon:debug_print("SitStandOrDescendStart hook");
+--	
+--	hooksecurefunc("SitStandOrDescendStart", function()
+--		Addon:debug_print("SitStandOrDescendStart called");
+--	end)
+--end
+
 --function Addon:Hook_DismissCompanion()
 --
 --	hooksecurefunc("DismissCompanion", function(button)
@@ -1052,6 +1132,75 @@ function postHook_C_PetJournal_SummonPetByGUID(petId, ...)
 end
 function C_PetJournal.SummonPetByGUID(petId)
 	postHook_C_PetJournal_SummonPetByGUID(petId, old_C_PetJournal_SummonPetByGUID(petId));
+end
+
+function Addon:SittingStart()
+	Addon:debug_print('SittingStart');
+	PlayerInfo.sitting = true;
+end
+
+function Addon:SittingStop()
+	Addon:debug_print('SittingStop');
+	PlayerInfo.sitting = false;
+end
+
+function Addon:SitStandOrDescendStart()
+	Addon:debug_print('SitStandOrDescendStart called');
+	if PlayerInfo.sitting then
+		Addon:SittingStop();
+	else
+		Addon:SittingStart();
+	end
+end
+
+function Addon:JumpOrAscendStart()
+	Addon:debug_print('JumpOrAscendStart called');
+	Addon:SittingStop();
+end
+
+function Addon:MoveAndSteerStart()
+	Addon:debug_print('MoveAndSteerStart called');
+	Addon:SittingStop();
+end
+
+function Addon:MoveBackwardStart()
+	Addon:debug_print('MoveBackwardStart called');
+	Addon:SittingStop();
+end
+
+function Addon:MoveForwardStart()
+	Addon:debug_print('MoveForwardStart called');
+	Addon:SittingStop();
+end
+
+function Addon:StrafeLeftStart()
+	Addon:debug_print('StrafeLeftStart called');
+	Addon:SittingStop();
+end
+
+function Addon:StrafeRightStart()
+	Addon:debug_print('StrafeRightStart called');
+	Addon:SittingStop();
+end
+
+function Addon:ToggleAutoRun()
+	Addon:debug_print('ToggleAutoRun called');
+	Addon:SittingStop();
+end
+
+function Addon:TurnLeftStart()
+	Addon:debug_print('TurnLeftStart called');
+	Addon:SittingStop();
+end
+
+function Addon:TurnRightStart()
+	Addon:debug_print('TurnRightStart called');
+	Addon:SittingStop();
+end
+
+function Addon:TurnOrActionStart()
+	Addon:debug_print('TurnOrActionStart called');
+	Addon:SittingStop();
 end
 
 --===============================================================================
@@ -1257,6 +1406,11 @@ function Addon:UnitAuraEventHandler()
 --	Addon:debug_print('PlayerStealthed = ' .. tostring(PlayerStealthed));
 --	Addon:debug_print('IsStealthed = ' .. tostring(Addon:IsStealthed()));
 
+	
+--    if unit ~= "player" then
+--        return
+--    end
+    
 	local wasPlayerMounted = PlayerMounted;
 	PlayerMounted = IsMounted();
 	
