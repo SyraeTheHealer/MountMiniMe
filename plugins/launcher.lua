@@ -67,6 +67,7 @@ function Launcher:CreateDataBrokerObject()
 			else
 				tooltip:AddLine(L.DismountedAddTip)
 				tooltip:AddLine(L.DismountedClearTip)
+				tooltip:AddLine(L.DismountedSummonPetTip)
 			end
 			if Addon:IsConfigAddonEnabled() then
 				tooltip:AddLine(L.ShowOptionsTip)

@@ -33,6 +33,7 @@ L.ShowOptionsTip = '<Right Click> to show the options menu'
 
 L.DismountedAddTip = '<Left Click> to add a dismounted mini-me'
 L.DismountedClearTip = '<Shift Left Click> to clear a dismounted mini-me'
+L.DismountedSummonPetTip = '<Alt Left Click> to re-summon your dismounted mini-me'
 
 L.HunterModeAddTip = '<Left Click> to add a hunter pet mini-me'
 L.HunterModeClearTip = '<Shift Left Click> to clear a hunter pet mini-me'
