@@ -11,3 +11,9 @@ MountMiniMe.lua
 core\helpers.lua
 plugins\slashCommands.lua
 plugins\launcher.lua
+code\configuration.lua
+code\event.lua
+code\init.lua
+code\profile.lua
+code\ui.lua
+code\util.lua
