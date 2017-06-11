@@ -4,7 +4,9 @@ local AddonName, AddonTable = ...
 local Addon = LibStub('AceAddon-3.0'):NewAddon(AddonTable, AddonName, 'AceBucket-3.0', 'AceEvent-3.0', 'AceConsole-3.0', 'AceTimer-3.0', 'AceHook-3.0')
 local L = LibStub('AceLocale-3.0'):GetLocale(AddonName)
 
-AddonTable.DEBUG = true;
+AddonTable.L = L;
+
+AddonTable.DEBUG = false;
 
 local CURRENT_VERSION = GetAddOnMetadata(AddonName, 'Version')
 local CONFIG_ADDON_NAME = AddonName .. '_Config'

@@ -1,4 +1,4 @@
-local AddonName = ...
+local AddonName, AddonTable = ...
 local Addon = _G[AddonName]
 
 --[[ Profile Functions ]]--
@@ -22,7 +22,7 @@ function Addon:SetProfile(name)
 		self.isNewProfile = nil
 		self:Load()
 	else
-		self:Print(format(L.InvalidProfile, name or 'null'))
+		self:Print(format(AddonTable.L.InvalidProfile, name or 'null'))
 	end
 end
 
@@ -31,7 +31,7 @@ function Addon:DeleteProfile(name)
 	if profile and profile ~= self.db:GetCurrentProfile() then
 		self.db:DeleteProfile(profile)
 	else
-		self:Print(L.CantDeleteCurrentProfile)
+		self:Print(AddonTable.L.CantDeleteCurrentProfile)
 	end
 end
 
@@ -52,7 +52,7 @@ function Addon:ResetProfile()
 end
 
 function Addon:ListProfiles()
-	self:Print(L.AvailableProfiles)
+	self:Print(AddonTable.L.AvailableProfiles)
 
 	local current = self.db:GetCurrentProfile()
 	for _,k in ipairs(self.db:GetProfiles()) do
@@ -85,21 +85,21 @@ end
 
 function Addon:OnNewProfile(msg, db, name)
 	self.isNewProfile = true
-	self:Print(format(L.ProfileCreated, name))
+	self:Print(format(AddonTable.L.ProfileCreated, name))
 end
 
 function Addon:OnProfileDeleted(msg, db, name)
-	self:Print(format(L.ProfileDeleted, name))
+	self:Print(format(AddonTable.L.ProfileDeleted, name))
 end
 
 function Addon:OnProfileChanged(msg, db, name)
-	self:Print(format(L.ProfileLoaded, name))
+	self:Print(format(AddonTable.L.ProfileLoaded, name))
 end
 
 function Addon:OnProfileCopied(msg, db, name)
-	self:Print(format(L.ProfileCopied, name))
+	self:Print(format(AddonTable.L.ProfileCopied, name))
 end
 
 function Addon:OnProfileReset(msg, db)
-	self:Print(format(L.ProfileReset, db:GetCurrentProfile()))
+	self:Print(format(AddonTable.L.ProfileReset, db:GetCurrentProfile()))
 end
