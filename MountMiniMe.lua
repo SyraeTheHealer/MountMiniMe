@@ -6,7 +6,7 @@ local L = LibStub('AceLocale-3.0'):GetLocale(AddonName)
 
 AddonTable.L = L;
 
-AddonTable.DEBUG = true;
+AddonTable.DEBUG = false;
 
 local CURRENT_VERSION = GetAddOnMetadata(AddonName, 'Version')
 local CONFIG_ADDON_NAME = AddonName .. '_Config'
