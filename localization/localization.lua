@@ -39,6 +39,10 @@ L.HunterModeAddTip = '<Left Click> to add a hunter pet mini-me'
 L.HunterModeClearTip = '<Shift Left Click> to clear a hunter pet mini-me'
 L.HunterModeSummonPetTip = '<Alt Left Click> to re-summon a hunter pet mini-me'
 
+L.ShapeshiftModeAddTip = '<Left Click> to add a shapeshift mini-me'
+L.ShapeshiftModeClearTip = '<Shift Left Click> to clear a shapeshift mini-me'
+L.ShapeshiftModeSummonPetTip = '<Alt Left Click> to re-summon a shapeshift mini-me'
+
 --Messages
 L.NotMountedError = 'You are not mounted'
 L.NoPetSummoned = 'You do not have a companion summoned'
@@ -49,3 +53,5 @@ L.DismountedPairAdded = '%s is now your dismounted mini-me'
 L.DismountedPairCleared = 'Dismounted mini-me cleared'
 L.HunterPairAdded = '%s is now %s\'s mini-me'
 L.HunterPairCleared = '%s is no longer %s\'s mini-me'
+L.ShapeshiftPairAdded = '%s is now %s\'s mini-me'
+L.ShapeshiftPairCleared = '%s is no longer %s\'s mini-me'

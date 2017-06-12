@@ -70,6 +70,25 @@ function Addon:SetHunterModeOperation(value)
 	self.db.profile.options.hunterMode.operation = value;
 end
 
+--Shapeshift mode
+function Addon:IsShapeshiftMode()
+  return self.db.profile.options.shapeshiftMode.enabled;
+end
+
+function Addon:SetShapeshiftMode(enable)
+--  self:debug_print('shapeshift mode = ' .. tostring(enable));
+  self.db.profile.options.shapeshiftMode.enabled = enable;
+end
+
+function Addon:GetShapeshiftModeOperation()
+  return self.db.profile.options.shapeshiftMode.operation;
+end
+
+function Addon:SetShapeshiftModeOperation(value)
+--  self:debug_print('shapeshift mode op = ' .. tostring(value));
+  self.db.profile.options.shapeshiftMode.operation = value;
+end
+
 --Per-character dismount
 function Addon:IsPerCharDismount()
 	return self.db.profile.options.perCharDismount.enabled;

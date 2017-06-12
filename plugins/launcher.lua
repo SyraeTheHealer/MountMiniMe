@@ -6,7 +6,7 @@
 
 --]]
 
-local AddonName = ...
+local AddonName, AddonTable = ...
 local Addon = _G[AddonName]
 local Launcher = Addon:NewModule('Launcher')
 local DBIcon = LibStub('LibDBIcon-1.0')
@@ -64,6 +64,10 @@ function Launcher:CreateDataBrokerObject()
 				tooltip:AddLine(L.HunterModeAddTip)
 				tooltip:AddLine(L.HunterModeClearTip)
 				tooltip:AddLine(L.HunterModeSummonPetTip)
+			elseif AddonTable.PlayerShapeshifted and Addon:IsShapeshiftMode() then
+        tooltip:AddLine(L.ShapeshiftModeAddTip)
+        tooltip:AddLine(L.ShapeshiftModeClearTip)
+        tooltip:AddLine(L.ShapeshiftModeSummonPetTip)
 			else
 				tooltip:AddLine(L.DismountedAddTip)
 				tooltip:AddLine(L.DismountedClearTip)

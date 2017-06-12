@@ -46,6 +46,9 @@ function Addon:InitTrackingVars()
 	AddonTable.PlayerMounted = IsMounted();
 	AddonTable.PlayerHasHunterPet = IsPetActive();
 	AddonTable.DesiredPetId = C_PetJournal.GetSummonedPetGUID();
+	
+  local index = GetShapeshiftForm();
+	AddonTable.PlayerShapeshifted = index > 0; 
 
 	self:debug_print('PlayerStealthed = ' .. tostring(PlayerStealthed));
 	self:debug_print('PlayerMounted = ' .. tostring(PlayerMounted));
@@ -56,6 +59,9 @@ function Addon:InitTrackingVars()
 	if AddonTable.PlayerHasHunterPet and self:IsHunterMode() then
 		Addon:debug_print('player loaded in and has pet and hunter mode active')
 		Addon:HandleHunterPetSummon();
+  elseif AddonTable.PlayerShapeshifted and self:IsShapeshiftMode() then
+    Addon:debug_print('player loaded in and has shapeshift mode active')
+    Addon:HandleShapeshiftStart();
 	else
 		if AddonTable.PlayerMounted then
 			Addon:debug_print('player loaded in mounted');

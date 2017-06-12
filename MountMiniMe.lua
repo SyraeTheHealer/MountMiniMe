@@ -6,7 +6,7 @@ local L = LibStub('AceLocale-3.0'):GetLocale(AddonName)
 
 AddonTable.L = L;
 
-AddonTable.DEBUG = false;
+AddonTable.DEBUG = true;
 
 local CURRENT_VERSION = GetAddOnMetadata(AddonName, 'Version')
 local CONFIG_ADDON_NAME = AddonName .. '_Config'
@@ -110,6 +110,9 @@ function Addon:OnInitialize()
 	
 	--Hunter pets
 	self:RegisterBucketEvent("UNIT_PET", 0.5, Addon.UnitPetEventHandler);
+	
+	--Shapeshift form
+	self:RegisterEvent("UPDATE_SHAPESHIFT_FORM", Addon.ShapeshiftHandler);
 
 	--Summon timer
 	AddonTable.RepeatingSummonTimerId = self:ScheduleRepeatingTimer("RepeatingSummonPet", 0.5);
@@ -156,6 +159,10 @@ function Addon:GetDefaults()
 					enabled = false,
 					operation = 'keep',
 				},
+        shapeshiftMode = {
+          enabled = false,
+          operation = 'keep',
+        },
 				perCharDismount = {
 					enabled = false,
 				},
@@ -168,6 +175,8 @@ function Addon:GetDefaults()
 			},
 			hunterModePairs = {
 			},
+      shapeshiftModePairs = {
+      },
 			perCharDismountPairs = {
 			},
 		},

@@ -77,6 +77,18 @@ function Addon:FindHunterPetName()
 	return name;
 end
 
+function Addon:FindShapeshiftName()
+  local index = GetShapeshiftForm();
+
+  if index == 0 then
+    return nil
+  end
+  
+  local texture, name, isActive, isCastable, spellID = GetShapeshiftFormInfo(index);
+  Addon:debug_print('shapeshift full name - ' .. tostring(name));
+  return name;
+end
+
 function Addon:FindMountName()
 	if not IsMounted() then
 		return nil
@@ -106,9 +118,9 @@ end
 function Addon:IsStealthed()
 	local stealthForm = IsStealthed();
 
-	if AddonTable.DEBUG and (not stealthForm) then
-		stealthForm = (GetShapeshiftFormID() ~= nil);
-	end
+--	if AddonTable.DEBUG and (not stealthForm) then
+--		stealthForm = (GetShapeshiftFormID() ~= nil);
+--	end
 
 	return stealthForm;
 end
@@ -171,6 +183,24 @@ function Addon:SetPetIdForHunterPetName(hunterPetName, petId)
 		return;
 	end
 	self.db.profile.hunterModePairs[hunterPetName] = petId;
+end
+
+function Addon:FindPetIdForShapeshiftName(shapeshiftName)
+  if not shapeshiftName then
+    Addon:debug_print('shapeshiftName is nil');
+    return nil;
+  end
+  local petId = self.db.profile.shapeshiftModePairs[shapeshiftName];
+  Addon:debug_print('shapeshiftName pair: ' .. tostring(shapeshiftName) .. ' - ' .. tostring(petId));
+  return petId;
+end
+
+function Addon:SetPetIdForShapeshiftName(shapeshiftName, petId)
+  if not shapeshiftName then
+    Addon:debug_print('shapeshiftName is nil');
+    return;
+  end
+  self.db.profile.shapeshiftModePairs[shapeshiftName] = petId;
 end
 
 function Addon:FindPetIdForCharacterName(characterName)
@@ -269,7 +299,12 @@ function Addon:AddMountPair()
 			
 			local hunterPetName = Addon:FindHunterPetName();
 			Addon:SetPetIdForHunterPetName(hunterPetName, petId);
-			Addon:Print(format(AddonTable.L.HunterPairAdded, Addon:FindPetName(petId), hunterPetName));			
+			Addon:Print(format(AddonTable.L.HunterPairAdded, Addon:FindPetName(petId), hunterPetName));		
+		elseif AddonTable.PlayerShapeshifted and Addon:IsShapeshiftMode() then
+		  Addon:debug_print('Adding shapeshift pet: petId = ' .. tostring(petId));	
+      local shapeshiftName = Addon:FindShapeshiftName();
+      Addon:SetPetIdForShapeshiftName(shapeshiftName, petId);
+      Addon:Print(format(AddonTable.L.ShapeshiftPairAdded, Addon:FindPetName(petId), shapeshiftName));   
 		else
 			Addon:debug_print('Adding dismount pet: petId = ' .. tostring(petId));
 			Addon:Print(format(AddonTable.L.DismountedPairAdded, Addon:FindPetName(petId)));
@@ -313,6 +348,14 @@ function Addon:ClearMountPair()
 			local oldPetName = Addon:FindPetName(oldPet)
 			
 			Addon:Print(format(AddonTable.L.HunterPairCleared, oldPetName, hunterPetName));			
+		elseif AddonTable.PlayerShapeshifted and Addon:IsShapeshiftMode() then
+      Addon:debug_print('Clearing shapeshift pet');  
+      local shapeshiftName = Addon:FindShapeshiftName();
+      local oldPet = Addon:FindPetIdForShapeshiftName(shapeshiftName);
+      Addon:SetPetIdForShapeshiftName(shapeshiftName, nil);
+      local oldPetName = Addon:FindPetName(oldPet)
+      
+      Addon:Print(format(AddonTable.L.ShapeshiftPairCleared, oldPetName, shapeshiftName));     
 		else
 			Addon:debug_print('Clearing dismount pet');
 			Addon:Print(AddonTable.L.DismountedPairCleared)
@@ -339,6 +382,9 @@ function Addon:ResummonPet()
 --			Addon:debug_print('Resummon hunter pet');
 			local hunterPetName = Addon:FindHunterPetName();
 			Addon:SummonPet(Addon:FindPetIdForHunterPetName(hunterPetName));
+		elseif AddonTable.PlayerShapeshifted and Addon:IsShapeshiftMode() then
+      local shapeshiftName = Addon:FindShapeshiftName();
+      Addon:SummonPet(Addon:FindPetIdForShapeshiftName(shapeshiftName));
 		else
 			
 			local petId = Addon:FindPetIdForCharacterName(UnitFullName("player"));
@@ -391,6 +437,10 @@ function Addon:RepeatingSummonPet()
 end
 
 function Addon:SummonPet(petId)
+  
+  Addon:debug_print('summon - AddonTable.PlayerStealthed = ' .. tostring(AddonTable.PlayerStealthed));
+  Addon:debug_print('summon - Addon:IsStealthed() = ' .. tostring(Addon:IsStealthed()));
+
 	if AddonTable.PlayerStealthed or Addon:IsStealthed() then
 		Addon:debug_print('summon - stealthed, no call');
 		return;

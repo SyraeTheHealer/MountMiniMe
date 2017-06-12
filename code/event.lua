@@ -27,9 +27,19 @@ function Addon:HandleMountStart()
 --	self:debug_print('hunterModeOp' .. tostring(hunterModeOp));
 	
 	if Addon:IsHunterMode() and IsPetActive() and (hunterModeOp == 'keep') then
---		Addon:debug_print('Hunter mode active, not summoning mount pet');
+--		Addon:debug_print('Hunter op is keep, not summoning mount pet');
 		return;
 	end
+	
+  local shapeshiftModeOp = self:GetShapeshiftModeOperation();
+  self:debug_print('shapeshiftModeOp = ' .. tostring(shapeshiftModeOp));
+  
+  if Addon:IsShapeshiftMode() and AddonTable.PlayerShapeshifted and (shapeshiftModeOp == 'keep') then
+    Addon:debug_print('Shapeshift op is keep, not summoning mount pet');
+    return;
+  end
+	
+	
 	local mountSpellId = Addon:FindMountSpellId()
 	AddonTable.SummonDelay = AddonTable.DefaultSummonDelay;
 	Addon:SummonPet(Addon:FindPetIdForMountSpellId(mountSpellId));	
@@ -50,6 +60,21 @@ function Addon:HandleMountEnd()
 		Addon:HandleHunterPetSummon();
 		return;
 	end
+	
+  local shapeshiftModeOp = self:GetShapeshiftModeOperation();
+  self:debug_print('shapeshiftModeOp ' .. tostring(shapeshiftModeOp));
+  self:debug_print('shapeshifted = ' .. tostring(AddonTable.PlayerShapeshifted));
+
+  if Addon:IsShapeshiftMode() and AddonTable.PlayerShapeshifted and (shapeshiftModeOp == 'keep') then
+    Addon:debug_print('Shapeshift op is keep, not summoning dismount pet');
+    return;
+  elseif Addon:IsShapeshiftMode() and AddonTable.PlayerShapeshifted and (shapeshiftModeOp == 'summon') then
+    Addon:debug_print('Dismount, Shapeshift op is summon, summoning shapeshift pet');
+    AddonTable.SummonDelay = Addon:GetDelayDismount();
+    Addon:HandleShapeshiftStart();
+    return;
+  end
+	
 	AddonTable.SummonDelay = Addon:GetDelayDismount();
 	Addon:CheckAndSummonDismountPet();
 end
@@ -126,7 +151,7 @@ function Addon:HandleStealthStart()
 	if Addon:IsDismissOnStealth() then
 		local currentPetId = C_PetJournal.GetSummonedPetGUID();
 		AddonTable.StealthPetId = currentPetId;
-		Addon:debug_print('storing pet id - ' .. tostring(StealthPetId));
+		Addon:debug_print('storing pet id - ' .. tostring(AddonTable.StealthPetId));
 		if currentPetId then
 			Addon:DismissPet();
 		end
@@ -138,7 +163,7 @@ function Addon:HandleStealthEnd()
 
 	Addon:debug_print('resummon after leave stealth');
 	if AddonTable.StealthPetId then
-		Addon:debug_print('resummon petId = ' .. tostring(StealthPetId));
+		Addon:debug_print('resummon petId = ' .. tostring(AddonTable.StealthPetId));
 		AddonTable.SummonDelay = Addon:GetDelayStealth();
 		Addon:SummonPet(AddonTable.StealthPetId);
 	elseif self:IsDetectDismount() and (not C_PetJournal.GetSummonedPetGUID()) then
@@ -146,7 +171,7 @@ function Addon:HandleStealthEnd()
 		AddonTable.SummonDelay = Addon:GetDelayStealth();
 		Addon:CheckAndSummonDismountPet();
 	end
-	StealthPetId = nil;
+	AddonTable.StealthPetId = nil;
 end
 
 
@@ -378,3 +403,70 @@ function Addon:TurnOrActionStart()
 	Addon:SittingStop();
 end
 
+--[[ Shapeshift ]]--
+function Addon:ShapeshiftHandler()
+  Addon:debug_print('ShapeshiftHandler called');
+  
+  local wasPlayerShapeshifted = AddonTable.PlayerShapeshifted;
+  local index = GetShapeshiftForm();
+  
+  if index > 0 then
+    Addon:debug_print('ShapeshiftHandler index = ' .. tostring(index));
+    local id = GetShapeshiftFormID();
+    Addon:debug_print('ShapeshiftHandler id = ' .. tostring(id));
+    local texture, name, isActive, isCastable, spellID = GetShapeshiftFormInfo(index);
+    Addon:debug_print('ShapeshiftHandler name = ' .. name);
+    
+    
+    AddonTable.PlayerShapeshifted = true;
+  else
+    AddonTable.PlayerShapeshifted = false;
+  end
+  
+--  if AddonTable.PlayerShapeshifted and (not wasPlayerShapeshifted) then
+--    Addon:debug_print('shapeshift start');
+--    Addon:HandleShapeshiftStart();
+--  elseif (not AddonTable.PlayerShapeshifted) and wasPlayerShapeshifted then
+--    Addon:debug_print('shapeshift end');
+--    Addon:HandleShapeshiftEnd();
+--  end
+
+
+--    local shapeshiftModeOp = Addon:GetShapeshiftModeOperation();
+--    Addon:debug_print('shapeshiftModeOp = ' .. tostring(shapeshiftModeOp));
+--    if IsMounted() and (shapeshiftModeOp == 'summon') and then
+--      Addon:debug_print('Player is mounted and shapeshiftModeOp is summon');
+--      return;
+--    end
+    
+    if AddonTable.PlayerShapeshifted and (not wasPlayerShapeshifted) then
+--      Addon:debug_print('petGUID = ' .. tostring(UnitGUID("pet")));
+    
+      Addon:debug_print('shapeshift start');
+      Addon:HandleShapeshiftStart();
+    elseif (not AddonTable.PlayerShapeshifted) and wasPlayerShapeshifted then
+--      Addon:debug_print('hunter pet dismissed');
+      Addon:HandleShapeshiftEnd();
+    elseif wasPlayerShapeshifted and AddonTable.PlayerShapeshifted then
+      Addon:debug_print('shapeshift switch');
+      Addon:HandleShapeshiftStart();
+    end
+
+end
+
+function Addon:HandleShapeshiftStart(delay)
+  Addon:debug_print('HandleShapeshiftStart');
+
+  local shapeshiftName = Addon:FindShapeshiftName();
+  Addon:SummonPet(Addon:FindPetIdForShapeshiftName(shapeshiftName), delay); 
+end
+
+function Addon:HandleShapeshiftEnd()
+  Addon:debug_print('HandleShapeshiftEnd');
+  
+  if IsMounted() then
+    Addon:ResummonPet();
+  else
+    Addon:CheckAndSummonDismountPet();
+  end
+end
