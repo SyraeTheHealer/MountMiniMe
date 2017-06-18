@@ -106,6 +106,24 @@ function Addon:SetPerCharDismount(enable)
 	end
 end
 
+--Per-spec dismount
+function Addon:IsPerSpecDismount()
+  return self.db.profile.options.perSpecDismount.enabled;
+end
+
+function Addon:SetPerSpecDismount(enable)
+--  self:debug_print('per-spec dismount = ' .. tostring(enable));
+  self.db.profile.options.perSpecDismount.enabled = enable;
+  
+  if enable then
+    local _, specName = GetSpecializationInfo(GetSpecialization());
+    local petId = self:FindPetIdForCharacterName(UnitFullName("player"));
+    if petId == nil then
+      Addon:AddPerSpecDismountPet(Addon:GetDismountPetId());
+    end
+  end
+end
+
 --Summon pet delays
 function Addon:GetDelayDismount()
 	return self.db.profile.options.summonDelays.dismountDelay;

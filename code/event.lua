@@ -415,7 +415,9 @@ function Addon:ShapeshiftHandler()
     local id = GetShapeshiftFormID();
     Addon:debug_print('ShapeshiftHandler id = ' .. tostring(id));
     local texture, name, isActive, isCastable, spellID = GetShapeshiftFormInfo(index);
-    Addon:debug_print('ShapeshiftHandler name = ' .. name);
+    if name ~= nil then
+      Addon:debug_print('ShapeshiftHandler name = ' .. name);
+    end
     
     
     AddonTable.PlayerShapeshifted = true;

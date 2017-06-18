@@ -21,20 +21,26 @@ function SlashCommands:OnCmd(args)
   local cmd = string.split(' ', args):lower() or args:lower()
 
   if cmd == 'add' or cmd == 'set' then
-    Addon:AddMountPair()
+    Addon:AddMountPair();
   elseif cmd == 'remove' or cmd == 'clear' or cmd == 'del' or cmd == 'delete' then
-    Addon:ClearMountPair()
+    Addon:ClearMountPair();
   elseif cmd == 'pet' then
-    Addon:ResummonPet()
+    Addon:ResummonPet();
+  elseif cmd == 'pause' then
+    Addon:Pause();
+  elseif cmd == 'resume' then
+    Addon:Resume();
   else
-    self:PrintHelp()
+    self:PrintHelp();
   end
 end
 
 function SlashCommands:PrintHelp(cmd)
   Addon:Print('Commands (/mmm, /mountminime)')
 
-  printCommand('add/set', L.AddDesc)
-  printCommand('remove/clear/del(ete)', L.ClearDesc)
-  printCommand('pet', L.SummonDesc)
+  printCommand('add/set', L.AddDesc);
+  printCommand('remove/clear/del(ete)', L.ClearDesc);
+  printCommand('pet', L.SummonDesc);
+  printCommand('pause', L.PauseDesc);
+  printCommand('resume', L.ResumeDesc);
 end

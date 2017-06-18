@@ -3,6 +3,14 @@ local Addon = _G[AddonName]
 
 --[[ Utility methods ]]--
 
+function Addon:Pause()
+  AddonTable.Paused = true;
+end
+
+function Addon:Resume()
+  AddonTable.Paused = false;
+end
+
 function Addon:UpdatePlayerInfo()
 	Addon:SetPlayerInfo({combat = UnitAffectingCombat("player") or UnitAffectingCombat("pet"), dead = UnitIsDead("player"), feigning = Addon:IsFeigning(), casting = false, channeling = false});
 end
@@ -208,8 +216,20 @@ function Addon:FindPetIdForCharacterName(characterName)
 		Addon:debug_print('characterName is nil');
 		return nil;
 	end
-	local petId = self.db.profile.perCharDismountPairs[characterName];
-	Addon:debug_print('characterName pair: ' .. tostring(characterName) .. ' - ' .. tostring(petId));
+	local petId = nil;
+	if Addon:IsPerSpecDismount() then
+    local _, specName = GetSpecializationInfo(GetSpecialization());
+    local charSpecTable = self.db.profile.perSpecDismountPairs[characterName];
+    if not charSpecTable then
+      charSpecTable = {}; 
+      self.db.profile.perSpecDismountPairs[characterName] = charSpecTable;
+    end
+    petId = charSpecTable[specName];   
+    Addon:debug_print('specName pair: ' .. tostring(characterName) .. ' - ' .. tostring(specName) .. ' - ' .. tostring(petId));
+	else
+  	petId = self.db.profile.perCharDismountPairs[characterName];
+  	Addon:debug_print('characterName pair: ' .. tostring(characterName) .. ' - ' .. tostring(petId));
+	end
 	return petId;
 end
 
@@ -218,8 +238,48 @@ function Addon:SetPetIdForCharacterName(characterName, petId)
 		Addon:debug_print('characterName is nil');
 		return;
 	end
-	self.db.profile.perCharDismountPairs[characterName] = petId;
+  if Addon:IsPerSpecDismount() then
+    local _, specName = GetSpecializationInfo(GetSpecialization());
+    local charSpecTable = self.db.profile.perSpecDismountPairs[characterName];
+    if not charSpecTable then
+      charSpecTable = {}; 
+      self.db.profile.perSpecDismountPairs[characterName] = charSpecTable;
+    end
+    charSpecTable[specName] = petId;
+    Addon:debug_print('spec pair added: ' .. tostring(specName) .. ' - ' .. tostring(petId))
+  else
+    self.db.profile.perCharDismountPairs[characterName] = petId;
+    Addon:debug_print('char pair added: ' .. tostring(characterName) .. ' - ' .. tostring(petId))
+	end
 end
+
+--  function Addon:FindPetIdForSpecName(characterName, specName)
+--    if not characterName then
+--      Addon:debug_print('characterName is nil');
+--      return nil;
+--    end
+--    if not specName then
+--      Addon:debug_print('specName is nil');
+--      return nil;
+--    end
+--    local charSpecTable = self.db.profile.perSpecDismountPairs[characterName];
+--    local petId = charSpecTable[specName];   
+--    Addon:debug_print('specName pair: ' .. tostring(characterName) .. ' - ' .. tostring(specName) .. ' - ' .. tostring(petId));
+--    return petId;
+--  end
+--  
+--  function Addon:SetPetIdForCharacterName(characterName, specName, petId)
+--    if not characterName then
+--      Addon:debug_print('characterName is nil');
+--      return;
+--    end
+--    if not specName then
+--      Addon:debug_print('specName is nil');
+--      return nil;
+--    end
+--    local charSpecTable = self.db.profile.perSpecDismountPairs[characterName];
+--    charSpecTable[specName] = petId;   
+--  end
 
 function Addon:IsPetSpellId(spellId)
 --	Addon:debug_print('IsPetSpellId - ' .. tostring(spellId) .. tostring(PetSpellIds[spellId]));
@@ -309,7 +369,7 @@ function Addon:AddMountPair()
 			Addon:debug_print('Adding dismount pet: petId = ' .. tostring(petId));
 			Addon:Print(format(AddonTable.L.DismountedPairAdded, Addon:FindPetName(petId)));
 			if Addon:IsPerCharDismount() then
-				Addon:AddPerCharDismountPet(petId);
+			  Addon:AddPerCharDismountPet(petId);
 			else
 				Addon:SetDismountPetId(petId);
 			end
@@ -390,7 +450,7 @@ function Addon:ResummonPet()
 			local petId = Addon:FindPetIdForCharacterName(UnitFullName("player"));
 			if Addon:IsPerCharDismount() and petId then
 --				Addon:debug_print('Per-char summon dismount pet: petId = ' .. tostring(petId));
-				Addon:SummonPet(petId);
+			  Addon:SummonPet(petId);
 			else
 				petId = Addon:GetDismountPetId();
 --				Addon:debug_print('Resummon dismount pet: petId = ' .. tostring(petId));
@@ -416,7 +476,7 @@ function Addon:CheckAndSummonDismountPet()
 	if dismountOp == 'summon' then
 		local petId = Addon:FindPetIdForCharacterName(UnitFullName("player"));
 		if Addon:IsPerCharDismount() and petId then
-			Addon:debug_print('dismount summon: petId = ' .. tostring(petId));
+			Addon:debug_print('per char dismount summon: petId = ' .. tostring(petId));
 			Addon:SummonPet(petId);
 		else
 			petId = Addon:GetDismountPetId();
@@ -437,6 +497,10 @@ function Addon:RepeatingSummonPet()
 end
 
 function Addon:SummonPet(petId)
+  if AddonTable.Paused then
+    Addon:debug_print('paused');
+    return;
+  end
   
   Addon:debug_print('summon - AddonTable.PlayerStealthed = ' .. tostring(AddonTable.PlayerStealthed));
   Addon:debug_print('summon - Addon:IsStealthed() = ' .. tostring(Addon:IsStealthed()));

@@ -26,6 +26,7 @@ AddonTable.CallSummonPetByGUIDTimerId = nil;
 AddonTable.PetChangeInProgress = false;
 AddonTable.SummonDelay = 0.5;
 AddonTable.DefaultSummonDelay = 0.5;
+AddonTable.Paused = false;
 
 AddonTable.PlayerInfo = {
 	combat = false,
@@ -166,6 +167,9 @@ function Addon:GetDefaults()
 				perCharDismount = {
 					enabled = false,
 				},
+        perSpecDismount = {
+          enabled = false,
+        },
 				summonDelays = {
 					dismountDelay = 1,
 					combatDelay = 1,
@@ -179,6 +183,8 @@ function Addon:GetDefaults()
       },
 			perCharDismountPairs = {
 			},
+      perSpecDismountPairs = {
+      },
 		},
 	}
 end
