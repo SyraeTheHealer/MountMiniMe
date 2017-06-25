@@ -417,6 +417,8 @@ function Addon:ShapeshiftHandler()
     local texture, name, isActive, isCastable, spellID = GetShapeshiftFormInfo(index);
     if name ~= nil then
       Addon:debug_print('ShapeshiftHandler name = ' .. name);
+    else
+      Addon:debug_print('ShapeshiftHandler name = not found');
     end
     
     
@@ -471,4 +473,10 @@ function Addon:HandleShapeshiftEnd()
   else
     Addon:CheckAndSummonDismountPet();
   end
+end
+
+--[[ Shapeshift ]]--
+function Addon:TalentHandler()
+  Addon:debug_print('TalentHandler called');
+  Addon:CheckAndSummonDismountPet();
 end

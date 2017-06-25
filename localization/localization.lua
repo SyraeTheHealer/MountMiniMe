@@ -11,6 +11,8 @@ local L = LibStub('AceLocale-3.0'):NewLocale('MountMiniMe', 'enUS', true)
 L.NewPlayer = 'Created new profile for %s'
 L.Updated = 'Updated to v%s'
 
+L.Paused = " - Paused"
+
 --profiles
 L.ProfileCreated = 'Created new profile "%s"'
 L.ProfileLoaded = 'Set profile to "%s"'

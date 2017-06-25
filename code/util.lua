@@ -89,10 +89,20 @@ function Addon:FindShapeshiftName()
   local index = GetShapeshiftForm();
 
   if index == 0 then
-    return nil
+    return nil;
   end
   
   local texture, name, isActive, isCastable, spellID = GetShapeshiftFormInfo(index);
+  
+  -- Check for other shapeshift stuff like Shaman Ghostwolf
+  if name == nil then
+    local id = GetShapeshiftFormID();
+    if id == 16 then
+      Addon:debug_print('Ghostwolf');
+      name = 'Ghostwolf';
+    end
+  end
+  
   Addon:debug_print('shapeshift full name - ' .. tostring(name));
   return name;
 end
@@ -361,8 +371,8 @@ function Addon:AddMountPair()
 			Addon:SetPetIdForHunterPetName(hunterPetName, petId);
 			Addon:Print(format(AddonTable.L.HunterPairAdded, Addon:FindPetName(petId), hunterPetName));		
 		elseif AddonTable.PlayerShapeshifted and Addon:IsShapeshiftMode() then
-		  Addon:debug_print('Adding shapeshift pet: petId = ' .. tostring(petId));	
       local shapeshiftName = Addon:FindShapeshiftName();
+      Addon:debug_print('Adding ' .. tostring(shapeshiftName) .. ' shapeshift pet: petId = ' .. tostring(petId));  
       Addon:SetPetIdForShapeshiftName(shapeshiftName, petId);
       Addon:Print(format(AddonTable.L.ShapeshiftPairAdded, Addon:FindPetName(petId), shapeshiftName));   
 		else

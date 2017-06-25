@@ -114,6 +114,9 @@ function Addon:OnInitialize()
 	
 	--Shapeshift form
 	self:RegisterEvent("UPDATE_SHAPESHIFT_FORM", Addon.ShapeshiftHandler);
+	
+	--Talent switch
+	self:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED", Addon.TalentHandler);
 
 	--Summon timer
 	AddonTable.RepeatingSummonTimerId = self:ScheduleRepeatingTimer("RepeatingSummonPet", 0.5);
