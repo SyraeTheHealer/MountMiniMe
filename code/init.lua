@@ -15,7 +15,9 @@ function Addon:CreateMountTable()
 end
 
 function Addon:DestroyMountTable()
-	AddonTable.MountCollection = wipe(MountCollection);	
+  if AddonTable.MountCollection then
+    AddonTable.MountCollection = wipe(AddonTable.MountCollection);
+  end	
 end
 
 function Addon:CreatePetSpellIdsTable()
@@ -35,7 +37,9 @@ function Addon:CreatePetSpellIdsTable()
 end
 
 function Addon:DestroyPetSpellIdsTable()
-	PetSpellIds = wipe(PetSpellIds);
+  if AddonTable.PetSpellIds then
+    AddonTable.PetSpellIds = wipe(AddonTable.PetSpellIds);
+  end
 end
 
 function Addon:InitTrackingVars()
