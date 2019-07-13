@@ -417,7 +417,7 @@ function Addon:ShapeshiftHandler()
 --    local texture, name, isActive, isCastable, spellID = GetShapeshiftFormInfo(index);
     local name = Addon:FindShapeshiftName();
     if name ~= nil then
-      Addon:debug_print('ShapeshiftHandler name = ' .. name);
+      Addon:debug_print('ShapeshiftHandler name = ' .. tostring(name));
     else
       Addon:debug_print('ShapeshiftHandler name = not found');
     end

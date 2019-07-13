@@ -92,8 +92,8 @@ function Addon:OnInitialize()
 	self:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP", Addon.ChannelStopEventHandler);
 	
 	--Looting
-	self:RegisterEvent("LOOT_STARTED", Addon.LootStartedHandler);
-	self:RegisterEvent("LOOT_STOPPED", Addon.LootStoppedHandler);
+	self:RegisterEvent("LOOT_OPENED", Addon.LootStartedHandler);
+	self:RegisterEvent("LOOT_CLOSED", Addon.LootStoppedHandler);
 
 	--Control lost
 	self:RegisterEvent("PLAYER_CONTROL_LOST", Addon.ControlLostStartedHandler);

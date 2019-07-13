@@ -39,17 +39,19 @@ end
 function Addon:FindMountSpellId()
 	-- No use trying to find a mount if we're not mounted
 	if not IsMounted() then
+    Addon:debug_print('isMounted = false');
 		return nil
 	end
 
 	local buffs, i = {}, 1;
-	local name, _, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i);
+	local name, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i);
+  Addon:debug_print('buff = ' .. name .. ', ' .. tostring(spellId));
 	while name do
 		if AddonTable.MountCollection[spellId] then
 			return spellId
 		end
 		i = i + 1;
-		name, _, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i);
+		name, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i);
 	end
 end
 
@@ -88,11 +90,16 @@ end
 function Addon:FindShapeshiftName()
   local index = GetShapeshiftForm();
 
+  Addon:debug_print('Shapeshift index = ' .. index);
+
   if index == 0 then
     return nil;
   end
   
-  local texture, name, isActive, isCastable, spellID = GetShapeshiftFormInfo(index);
+  local texture, isActive, isCastable, spellID = GetShapeshiftFormInfo(index);
+  
+  local name = GetSpellInfo(spellID);
+  Addon:debug_print('shapeshift name = ' .. tostring(name));
   
   -- Check for other shapeshift stuff like Shaman Ghostwolf
   if name == nil then
@@ -346,15 +353,21 @@ function Addon:AddMountPair()
 		return
 	end
 
+  Addon:debug_print('Retrieving current pet GUID');
 	local petId = C_PetJournal.GetSummonedPetGUID();
 
+  Addon:debug_print('Current pet GUID = ' .. petId);
 	if not petId then
 		Addon:Print(AddonTable.L.NoPetSummoned);
 		return;
 	end
 
 	if IsMounted() then
+	   Addon:debug_print('isMounted = true');
+	   Addon:debug_print('Finding mount spell id');
 		local mountSpellId = Addon:FindMountSpellId();
+
+    Addon:debug_print('mount spell id = ' .. tostring(mountSpellId));
 
 		if mountSpellId then
 			Addon:SetPetIdForMountSpellId(mountSpellId, petId);
