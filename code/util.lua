@@ -45,14 +45,17 @@ function Addon:FindMountSpellId()
 
 	local buffs, i = {}, 1;
 	local name, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i);
-  Addon:debug_print('buff = ' .. name .. ', ' .. tostring(spellId));
-	while name do
-		if AddonTable.MountCollection[spellId] then
-			return spellId
-		end
-		i = i + 1;
-		name, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i);
-	end
+	
+	if name then
+    Addon:debug_print('buff = ' .. name .. ', ' .. tostring(spellId));
+  	while name do
+  		if AddonTable.MountCollection[spellId] then
+  			return spellId
+  		end
+  		i = i + 1;
+  		name, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i);
+  	end
+  end
 end
 
 function Addon:FindPetName(petId)
